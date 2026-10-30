@@ -1,0 +1,236 @@
+/* ============================================================================
+   Farmer Dashboard Layout
+   ============================================================================ */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+/* Header */
+.dashboard-header {
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  gap: 16px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  color: var(--color-accent);
+}
+
+.brand-name {
+  color: var(--color-primary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.brand-sub {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.header-welcome {
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-text {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin-right: 6px;
+}
+
+.welcome-user {
+  color: var(--color-text-primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.welcome-farm {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background var(--transition);
+}
+
+.btn-logout:hover {
+  background: var(--color-primary-hover);
+}
+
+/* Main */
+.dashboard-main {
+  flex: 1;
+  padding: 32px 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Welcome section */
+.welcome-section {
+  margin-bottom: 34px;
+}
+
+.welcome-section h1 {
+  color: var(--color-text-primary);
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.welcome-sub {
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+
+.farmer-info {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-input-bg);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.info-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.info-value {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Section titles */
+.section-title {
+  color: var(--color-text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* Cards grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 34px;
+}
+
+/* Placeholder grid */
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.placeholder-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.placeholder-icon {
+  color: var(--color-secondary);
+}
+
+.placeholder-title {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.placeholder-text {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.coming-soon {
+  margin-top: 22px;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .dashboard-main {
+    padding: 20px 1rem;
+  }
+  .header-content {
+    padding: 12px 1rem;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-welcome {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  }
+  .welcome-text {
+    margin-right: 4px;
+  }
+}

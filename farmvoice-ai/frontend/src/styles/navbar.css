@@ -1,0 +1,132 @@
+/* ============================================================================
+   Slim Navigation Bar (Deep Emerald)
+   ============================================================================ */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  height: 56px;
+}
+
+.navbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  color: var(--color-accent);
+}
+
+.brand-name {
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: 26px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+
+.nav-link:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-link.active {
+  color: var(--color-accent);
+}
+
+.nav-link svg {
+  color: inherit;
+  opacity: 0.9;
+}
+
+/* Mobile toggle */
+.navbar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+}
+
+.navbar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile menu */
+@media (max-width: 768px) {
+  .navbar-toggle {
+    display: flex;
+  }
+
+  .navbar-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-primary);
+    flex-direction: column;
+    gap: 0;
+    padding: 1rem;
+    align-items: stretch;
+    display: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .navbar-menu[data-open="true"] {
+    display: flex;
+  }
+
+  .nav-link {
+    justify-content: flex-start;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    border-radius: var(--radius-sm);
+    width: 100%;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .nav-link.active {
+    color: var(--color-accent);
+  }
+}

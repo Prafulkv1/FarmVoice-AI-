@@ -1,0 +1,81 @@
+/* ============================================================================
+   FarmVoice AI - Global Styles & Design Tokens
+   ============================================================================ */
+:root {
+  /* Premium agricultural technology palette */
+  --color-primary: #174C3C;      /* Deep Emerald */
+  --color-primary-hover: #103B2E; /* Dark Emerald */
+  --color-secondary: #75A88A;    /* Sage Green */
+  --color-accent: #D6A84B;       /* Harvest Gold */
+  --color-bg: #F5F7F0;           /* Soft Ivory */
+  --color-card: #FFFFFF;         /* Pure White */
+  --color-text-primary: #26352C; /* Charcoal Green */
+  --color-text-secondary: #657368; /* Grey Green */
+  --color-input-bg: #E5EEE7;     /* Pale Mint */
+  --color-border: #DCE5DC;       /* Soft Grey Green */
+
+  --color-error: #B3402E;
+  --color-success: #2E7D5B;
+  --color-info: #174C3C;
+
+  --radius-md: 14px;
+  --radius-sm: 8px;
+  --radius-lg: 20px;
+
+  --shadow: 0 6px 24px rgba(23, 76, 60, 0.08);
+  --shadow-sm: 0 2px 10px rgba(23, 76, 60, 0.06);
+  --shadow-card: 0 4px 16px rgba(23, 76, 60, 0.06);
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+
+  --transition: 0.22s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

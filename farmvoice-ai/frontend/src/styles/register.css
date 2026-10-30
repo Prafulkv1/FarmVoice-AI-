@@ -1,0 +1,93 @@
+/* ============================================================================
+   Registration Page - Slightly wider centered card
+   ============================================================================ */
+
+.register-page {
+  min-height: calc(100vh - 56px);
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.register-card {
+  background: var(--color-card);
+  width: 100%;
+  max-width: 470px;
+  padding: 36px 30px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.brand-icon {
+  color: var(--color-accent);
+}
+
+.brand-name {
+  color: var(--color-primary);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.card-title {
+  color: var(--color-text-primary);
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.card-sub {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+.btn-register {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.account-footer {
+  margin-top: 22px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.account-footer .login-link {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(23, 76, 60, 0.3);
+  text-underline-offset: 2px;
+}
+
+.account-footer .login-link:hover {
+  color: var(--color-primary-hover);
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    padding: 1rem 0.75rem;
+  }
+  .register-card {
+    padding: 28px 20px;
+    max-width: 100%;
+  }
+}
