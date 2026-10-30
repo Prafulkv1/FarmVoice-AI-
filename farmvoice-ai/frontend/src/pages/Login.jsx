@@ -4,6 +4,7 @@ import { Sprout, User, Lock, AlertCircle } from "lucide-react";
 import { authService } from "../services/authService";
 import { validateLogin } from "../utils/validation";
 import FormInput from "../components/FormInput";
+import { useAuth } from "../components/AuthProvider";
 import "../styles/login.css";
 
 export default function Login() {
@@ -13,6 +14,7 @@ export default function Login() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login: setAuth } = useAuth();
 
   const handleChange = (key) => (value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -34,18 +36,43 @@ export default function Login() {
 
     setLoading(true);
     try {
-      await authService.login({
+      const res = await authService.login({
         username: form.username,
         password: form.password,
       });
-      navigate("/dashboard", { replace: true });
+
+      if (res.data && res.data.success) {
+        // Establish local authentication state immediately so protected
+        // routes work without requiring a manual page refresh.
+        if (res.data.farmer) {
+          setAuth(res.data.farmer);
+        } else {
+          setAuth({
+            farmer_id: res.data.farmer_id,
+            username: form.username,
+            authenticated: true,
+          });
+        }
+        navigate("/dashboard", { replace: true });
+      } else {
+        setServerError(res.data?.message || "Login failed. Please try again.");
+      }
     } catch (err) {
-      // Generic message: never reveal whether username or password was wrong
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.errors ||
-        "Login failed. Please try again.";
-      setServerError(typeof msg === "string" ? msg : "Login failed. Please try again.");
+      // Backend unavailable or network error
+      if (!err.response) {
+        setServerError(
+          "Unable to connect to the server. Please try again later.",
+        );
+      } else {
+        // Generic message: never reveal whether username or password was wrong
+        const msg =
+          err.response.data?.message ||
+          err.response.data?.errors ||
+          "Login failed. Please try again.";
+        setServerError(
+          typeof msg === "string" ? msg : "Login failed. Please try again.",
+        );
+      }
       // Intentionally do NOT clear the username
     } finally {
       setLoading(false);

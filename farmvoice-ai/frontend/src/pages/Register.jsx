@@ -16,6 +16,7 @@ export default function Register() {
     confirm_password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [message, setMessage] = useState("");
@@ -160,8 +161,8 @@ export default function Register() {
             value={form.confirm_password}
             onChange={handleChange("confirm_password")}
             error={errors.confirm_password}
-            showPassword
-            onTogglePassword={() => setShowPassword((s) => !s)}
+            showPassword={showConfirmPassword}
+            onTogglePassword={() => setShowConfirmPassword((s) => !s)}
           />
 
           <button type="submit" className="btn-register" disabled={loading}>

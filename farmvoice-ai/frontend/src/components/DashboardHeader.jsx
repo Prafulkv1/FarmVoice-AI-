@@ -34,7 +34,7 @@ export default function DashboardHeader() {
 
         <div className="header-welcome">
           <span className="welcome-text">Welcome back,</span>
-          <span className="welcome-user">{username || "Farmer"}</span>
+          <span className="welcome-user">{username}</span>
           {farmName && <span className="welcome-farm">· {farmName}</span>}
         </div>
 
@@ -46,7 +46,7 @@ export default function DashboardHeader() {
             <User size={20} />
           </button>
           <button className="btn-logout" onClick={handleLogout} aria-label="Logout">
-            Logout
+            <LogOut size={18} /> Logout
           </button>
         </div>
       </div>

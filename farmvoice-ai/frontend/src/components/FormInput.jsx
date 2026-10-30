@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { User, Lock, Mail, Phone, Building2, Eye, EyeOff } from "lucide-react";
 import "../styles/components.css";
 
@@ -22,8 +21,9 @@ export default function FormInput({
   showPassword = false,
   onTogglePassword,
 }) {
-  const [show, setShow] = useState(false);
-  const isPassword = type === "password" && !show;
+  // Use the showPassword prop from the parent so visibility is controlled externally.
+  // The parent owns the useState and passes the current value down.
+  const isPassword = type === "password" && !showPassword;
   const displayType = isPassword ? "password" : "text";
 
   return (
@@ -41,14 +41,14 @@ export default function FormInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
-        {icon === "lock" && showPassword && (
+        {icon === "lock" && (
           <button
             type="button"
             className="toggle-password"
             onClick={onTogglePassword}
-            aria-label={show ? "Hide password" : "Show password"}
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
-            {show ? <EyeOff size={16} className="toggle-icon" /> : <Eye size={16} className="toggle-icon" />}
+            {showPassword ? <EyeOff size={16} className="toggle-icon" /> : <Eye size={16} className="toggle-icon" />}
           </button>
         )}
       </div>

@@ -60,10 +60,80 @@
 
 .form-input {
   height: 48px;
+  padding-right: 40px;
 }
 
+/* Password visibility toggle icon (eye) */
+.login-page .toggle-password {
+  right: 12px;
+  padding: 8px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.22s ease,
+    color 0.22s ease;
+}
+
+.login-page .toggle-password:hover {
+  background: rgba(23, 76, 60, 0.08);
+  color: var(--color-primary);
+}
+
+.login-page .toggle-password:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #93c5fd;
+}
+
+.login-page .toggle-password .toggle-icon {
+  pointer-events: none;
+}
+
+/* Login button - Professional Blue */
 .btn-login {
   margin-top: 6px;
+  width: 100%;
+  height: 48px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  transition:
+    background 0.22s ease,
+    transform 0.22s ease,
+    box-shadow 0.22s ease;
+  white-space: nowrap;
+}
+
+.btn-login:not(:disabled):hover {
+  background: #1d4ed8;
+}
+
+.btn-login:not(:disabled):active {
+  background: #1e40af;
+  transform: translateY(1px);
+}
+
+.btn-login:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-login:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #93c5fd;
 }
 
 .account-footer {
