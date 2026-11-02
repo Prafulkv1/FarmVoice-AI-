@@ -71,7 +71,7 @@ class Config:
     JWT_CSRF_IN_COOKIES = True
 
     JWT_ACCESS_CSRF_COOKIE_NAME = os.environ.get(
-        "JWT_ACCESS_CSRF_COOKIE_NAME", "csrf_access_token"
+        "JWT_ACCESS_CSRF_COOKIE_NAME", "csrf_access_token_cookie"
     )
 
     JWT_ACCESS_CSRF_HEADER_NAME = "X-CSRF-TOKEN"

@@ -123,4 +123,7 @@ class AuthService:
     @staticmethod
     def logout():
         """Logout handler. Cookie clearing is handled in the view."""
-        return {"success": True, "message": "Logged out successfully."}
+        return (
+            {"success": True, "message": "Logged out successfully."},
+            200,
+        )

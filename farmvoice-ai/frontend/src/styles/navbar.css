@@ -1,14 +1,14 @@
 /* ============================================================================
-   Slim Navigation Bar (Deep Emerald)
+   Public Navigation Bar (Login / Register pages)
    ============================================================================ */
 
 .navbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--color-primary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  height: 56px;
+  background: var(--color-sidebar-bg);
+  border-bottom: 1px solid var(--color-border);
+  height: var(--nav-height);
 }
 
 .navbar-container {
@@ -27,16 +27,17 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .brand-icon {
-  color: var(--color-accent);
+  color: var(--color-primary);
 }
 
 .brand-name {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 1.35rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.01em;
 }
 
@@ -51,26 +52,35 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.92);
-  padding: 6px 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: 8px 4px;
   border-radius: var(--radius-sm);
   transition: color var(--transition), background var(--transition);
+  white-space: nowrap;
 }
 
 .nav-link:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+  background: var(--color-active-bg);
 }
 
 .nav-link.active {
-  color: var(--color-accent);
+  color: var(--color-primary);
+  background: var(--color-active-bg);
 }
 
-.nav-link svg {
-  color: inherit;
-  opacity: 0.9;
+.auth-link {
+  font-weight: 700;
+}
+
+.register-link {
+  color: var(--color-primary);
+}
+
+.login-link {
+  color: var(--color-primary);
 }
 
 /* Mobile toggle */
@@ -80,12 +90,12 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  color: #ffffff;
+  color: var(--color-text-primary);
   border-radius: var(--radius-sm);
 }
 
 .navbar-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-active-bg);
 }
 
 /* Mobile menu */
@@ -95,21 +105,22 @@
   }
 
   .navbar-menu {
-    position: absolute;
-    top: 100%;
+    position: fixed;
+    top: var(--nav-height);
     left: 0;
     right: 0;
-    background: var(--color-primary);
+    background: var(--color-sidebar-bg);
     flex-direction: column;
     gap: 0;
     padding: 1rem;
     align-items: stretch;
     display: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--color-border);
     box-shadow: var(--shadow-sm);
+    z-index: 200;
   }
 
-  .navbar-menu[data-open="true"] {
+  .navbar-menu.open {
     display: flex;
   }
 
@@ -123,10 +134,10 @@
 
   .nav-link:hover,
   .nav-link.active {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--color-active-bg);
   }
 
   .nav-link.active {
-    color: var(--color-accent);
+    color: var(--color-primary);
   }
 }

@@ -25,10 +25,11 @@ export default function DashboardHeader() {
     <header className="dashboard-header">
       <div className="header-content">
         <div className="header-brand">
-          <div className="brand-icon"><Sprout size={22} color="#D6A84B" /></div>
+          <div className="brand-icon">
+            <Sprout size={22} color="#D6A84B" />
+          </div>
           <div>
             <div className="brand-name">FarmVoice AI</div>
-            <div className="brand-sub">Farmer Dashboard</div>
           </div>
         </div>
 
@@ -45,7 +46,11 @@ export default function DashboardHeader() {
           <button className="icon-btn" aria-label="Profile">
             <User size={20} />
           </button>
-          <button className="btn-logout" onClick={handleLogout} aria-label="Logout">
+          <button
+            className="btn-logout"
+            onClick={handleLogout}
+            aria-label="Logout"
+          >
             <LogOut size={18} /> Logout
           </button>
         </div>

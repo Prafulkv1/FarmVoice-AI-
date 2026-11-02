@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sprout, User, Lock, AlertCircle } from "lucide-react";
+import { Sprout, AlertCircle } from "lucide-react";
 import { authService } from "../services/authService";
 import { validateLogin } from "../utils/validation";
 import FormInput from "../components/FormInput";
@@ -14,7 +14,14 @@ export default function Login() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login: setAuth } = useAuth();
+  const { login: setAuth, isAuthenticated } = useAuth();
+
+  // If the user already has a valid session, send them straight to the dashboard.
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (key) => (value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -80,64 +87,93 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="card-header">
-          <div className="brand">
-            <div className="brand-icon">
-              <Sprout size={22} color="#D6A84B" />
+    <div className="auth-split-page">
+      <div className="auth-split-left">
+        <div className="auth-left-pattern" aria-hidden="true" />
+        <div className="auth-left-content">
+          <div className="auth-left-brand">
+            <div className="auth-left-icon">
+              <Sprout size={26} color="#FFFFFF" />
             </div>
-            <div className="brand-name">FarmVoice AI</div>
+            <span className="auth-left-name">FarmVoice AI</span>
           </div>
-          <h1 className="card-title">Farmer Login</h1>
-          <p className="card-sub">Sign in to your farmer account</p>
+          <div className="auth-left-welcome">
+            <h1 className="auth-left-heading">Hello, FarmVoice AI! 👋</h1>
+            <p className="auth-left-desc">
+              Your smart farming companion. Get personalized agricultural
+              guidance, regional-language AI assistance, and smarter farming
+              insights.
+            </p>
+          </div>
+          <div className="auth-left-footer">
+            <span>© 2026 FarmVoice AI. All rights reserved.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="auth-split-right">
+        <div className="auth-right-brand">
+          <div className="auth-right-icon">
+            <Sprout size={22} color="#3737D9" />
+          </div>
+          <span className="auth-right-name">FarmVoice AI</span>
         </div>
 
-        {serverError && (
-          <div className="alert alert-error">
-            <AlertCircle size={18} />
-            <span>{serverError}</span>
-          </div>
-        )}
+        <div className="auth-right-form">
+          <h1 className="auth-right-title">Welcome Back!</h1>
+          <p className="auth-right-sub">
+            Don&rsquo;t have an account?{" "}
+            <a href="/register" className="auth-right-link">
+              Create a new account now.
+            </a>
+          </p>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <FormInput
-            id="username"
-            label="Username"
-            placeholder="Enter your username"
-            icon="user"
-            value={form.username}
-            onChange={handleChange("username")}
-            error={errors.username}
-          />
-          <FormInput
-            id="password"
-            label="Password"
-            placeholder="Enter your password"
-            icon="lock"
-            type="password"
-            value={form.password}
-            onChange={handleChange("password")}
-            error={errors.password}
-            showPassword
-            onTogglePassword={() => setShowPassword((s) => !s)}
-          />
-          <div className="forgot-wrapper">
-            <a href="#" className="forgot-link">
-              Forgot Password?
+          {serverError && (
+            <div className="alert alert-error">
+              <AlertCircle size={18} />
+              <span>{serverError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
+            <FormInput
+              id="username"
+              label="Username"
+              placeholder="Enter your username"
+              icon="user"
+              value={form.username}
+              onChange={handleChange("username")}
+              error={errors.username}
+            />
+            <FormInput
+              id="password"
+              label="Password"
+              placeholder="Enter your password"
+              icon="lock"
+              type="password"
+              value={form.password}
+              onChange={handleChange("password")}
+              error={errors.password}
+              showPassword
+              onTogglePassword={() => setShowPassword((s) => !s)}
+            />
+            <div className="auth-forgot">
+              <a href="#" className="auth-forgot-link">
+                Forgot Password?
+              </a>
+            </div>
+
+            <button type="submit" className="btn-auth-primary" disabled={loading}>
+              {loading ? "Signing in..." : "Login"}
+            </button>
+          </form>
+
+          <div className="auth-switch">
+            New Farmer?{" "}
+            <a href="/register" className="auth-switch-link">
+              Create Account
             </a>
           </div>
-
-          <button type="submit" className="btn-login" disabled={loading}>
-            {loading ? "Signing in..." : "Login"}
-          </button>
-        </form>
-
-        <div className="account-footer">
-          New Farmer?{" "}
-          <a href="/register" className="create-link">
-            Create Account
-          </a>
         </div>
       </div>
     </div>

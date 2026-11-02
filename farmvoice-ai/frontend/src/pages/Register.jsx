@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sprout, User, Lock, Mail, Phone, Building2, AlertCircle } from "lucide-react";
+import { Sprout, Mail, AlertCircle } from "lucide-react";
 import { authService } from "../services/authService";
 import { validateRegistration } from "../utils/validation";
 import FormInput from "../components/FormInput";
@@ -74,33 +74,60 @@ export default function Register() {
   };
 
   return (
-    <div className="register-page">
-      <div className="register-card">
-        <div className="card-header">
-          <div className="brand">
-            <div className="brand-icon">
-              <Sprout size={22} color="#D6A84B" />
+    <div className="auth-split-page">
+      <div className="auth-split-left">
+        <div className="auth-left-pattern" aria-hidden="true" />
+        <div className="auth-left-content">
+          <div className="auth-left-brand">
+            <div className="auth-left-icon">
+              <Sprout size={26} color="#FFFFFF" />
             </div>
-            <div className="brand-name">FarmVoice AI</div>
+            <span className="auth-left-name">FarmVoice AI</span>
           </div>
-          <h1 className="card-title">Farmer Registration</h1>
-          <p className="card-sub">Create your farmer account</p>
+          <div className="auth-left-welcome">
+            <h1 className="auth-left-heading">Join FarmVoice AI! 👋</h1>
+            <p className="auth-left-desc">
+              Create your account and explore intelligent farming assistance
+              for better agricultural decisions.
+            </p>
+          </div>
+          <div className="auth-left-footer">
+            <span>© 2026 FarmVoice AI. All rights reserved.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="auth-split-right">
+        <div className="auth-right-brand">
+          <div className="auth-right-icon">
+            <Sprout size={22} color="#3737D9" />
+          </div>
+          <span className="auth-right-name">FarmVoice AI</span>
         </div>
 
-        {serverError && (
-          <div className="alert alert-error">
-            <AlertCircle size={18} />
-            <span>{serverError}</span>
-          </div>
-        )}
-        {message && (
-          <div className="alert alert-success">
-            <Mail size={18} />
-            <span>{message}</span>
-          </div>
-        )}
+        <div className="auth-right-form auth-right-form-scroll">
+          <h1 className="auth-right-title">Create Your Account</h1>
+          <p className="auth-right-sub">
+            Already have an account?{" "}
+            <a href="/login" className="auth-right-link">
+              Log in.
+            </a>
+          </p>
 
-        <form onSubmit={handleSubmit} noValidate>
+          {serverError && (
+            <div className="alert alert-error">
+              <AlertCircle size={18} />
+              <span>{serverError}</span>
+            </div>
+          )}
+          {message && (
+            <div className="alert alert-success">
+              <Mail size={18} />
+              <span>{message}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
           <FormInput
             id="farm_name"
             label="Farm Name"
@@ -165,16 +192,17 @@ export default function Register() {
             onTogglePassword={() => setShowConfirmPassword((s) => !s)}
           />
 
-          <button type="submit" className="btn-register" disabled={loading}>
-            {loading ? "Creating Account..." : "Register"}
-          </button>
-        </form>
+            <button type="submit" className="btn-auth-primary" disabled={loading}>
+              {loading ? "Creating Account..." : "Create Account"}
+            </button>
+          </form>
 
-        <div className="account-footer">
-          Already have an account?{" "}
-          <a href="/login" className="login-link">
-            Login
-          </a>
+          <div className="auth-switch">
+            Already have an account?{" "}
+            <a href="/login" className="auth-switch-link">
+              Login
+            </a>
+          </div>
         </div>
       </div>
     </div>

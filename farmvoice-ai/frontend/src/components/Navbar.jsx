@@ -1,71 +1,66 @@
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
-import { useAuth } from "./AuthProvider";
-import {
-  Sprout,
-  Home,
-  User,
-  Mail,
-  Layout,
-  Bot,
-  Building2,
-  Crop,
-  Cloud,
-  Menu,
-  X,
-} from "lucide-react";
+﻿import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import { Sprout, Menu, X } from "lucide-react";
 import "../styles/navbar.css";
 
 const publicLinks = [
-  { name: "Home", to: "/", icon: <Home size={16} /> },
-  { name: "About", to: "/about", icon: <User size={16} /> },
-  { name: "Contact", to: "/contact", icon: <Mail size={16} /> },
-];
-
-const dashboardLinks = [
-  { name: "Dashboard", to: "/dashboard", icon: <Layout size={16} /> },
-  { name: "AI Assistant", to: "/ai-assistant", icon: <Bot size={16} /> },
-  { name: "My Farm", to: "/my-farm", icon: <Building2 size={16} /> },
-  { name: "Crop Information", to: "/crop-info", icon: <Crop size={16} /> },
-  { name: "Weather", to: "/weather", icon: <Cloud size={16} /> },
-  { name: "Profile", to: "/profile", icon: <User size={16} /> },
+  { name: "Home", to: "/login" },
+  { name: "About", to: "/about" },
+  { name: "Contact", to: "/contact" },
 ];
 
 export default function Navbar() {
-  const location = useLocation();
-  const { isAuthenticated, checking } = useAuth();
   const [open, setOpen] = useState(false);
-
-  const links = checking ? [] : isAuthenticated ? dashboardLinks : publicLinks;
-
-  const isActive = (to) => {
-    if (to === "/") return location.pathname === "/";
-    return location.pathname === to;
-  };
+  const location = useLocation();
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <div className="navbar-brand">
-          <div className="brand-icon"><Sprout size={20} color="#D6A84B" /></div>
-          <span className="brand-name">FarmVoice AI</span>
+        <div className="navbar-brand" onClick={() => setOpen(false)}>
+          <div className="brand-icon">
+            <Sprout size={20} color="#2E7D32" />
+          </div>
+          <div className="brand-name">FarmVoice AI</div>
         </div>
 
-        <div className="navbar-menu" data-open={open}>
-          {links.map((link) => (
-            <a
+        <div className={`navbar-menu ${open ? "open" : ""}`}>
+          {publicLinks.map((link) => (
+            <NavLink
               key={link.name}
-              href={link.to}
+              to={link.to}
+              className={({ isActive }) =>
+                `nav-link ${isActive ? "active" : ""}`
+              }
               onClick={() => setOpen(false)}
-              className={`nav-link${isActive(link.to) ? " active" : ""}`}
             >
-              {link.icon}
-              <span>{link.name}</span>
-            </a>
+              {link.name}
+            </NavLink>
           ))}
+          {location.pathname === "/login" ? (
+            <NavLink
+              to="/register"
+              className="nav-link auth-link register-link"
+              onClick={() => setOpen(false)}
+            >
+              Create Account
+            </NavLink>
+          ) : (
+            <NavLink
+              to="/login"
+              className="nav-link auth-link login-link"
+              onClick={() => setOpen(false)}
+            >
+              Login
+            </NavLink>
+          )}
         </div>
 
-        <button className="navbar-toggle" aria-label="Toggle menu" onClick={() => setOpen(!open)}>
+        <button
+          className="navbar-toggle"
+          onClick={() => setOpen(!open)}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+        >
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
