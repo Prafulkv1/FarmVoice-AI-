@@ -68,7 +68,11 @@ export default function Register() {
         err.response?.data?.message ||
         err.response?.data?.errors ||
         "Registration failed. Please try again.";
-      setServerError(typeof msg === "string" ? msg : "Registration failed. Please try again.");
+      setServerError(
+        typeof msg === "string"
+          ? msg
+          : "Registration failed. Please try again.",
+      );
       setLoading(false);
     }
   };
@@ -87,8 +91,8 @@ export default function Register() {
           <div className="auth-left-welcome">
             <h1 className="auth-left-heading">Join FarmVoice AI! 👋</h1>
             <p className="auth-left-desc">
-              Create your account and explore intelligent farming assistance
-              for better agricultural decisions.
+              Create your account and explore intelligent farming assistance for
+              better agricultural decisions.
             </p>
           </div>
           <div className="auth-left-footer">
@@ -128,71 +132,75 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit} noValidate>
-          <FormInput
-            id="farm_name"
-            label="Farm Name"
-            placeholder="Enter your farm name"
-            icon="farm"
-            value={form.farm_name}
-            onChange={handleChange("farm_name")}
-            error={errors.farm_name}
-          />
-          <FormInput
-            id="username"
-            label="Farmer Username"
-            placeholder="Create a username"
-            icon="user"
-            value={form.username}
-            onChange={handleChange("username")}
-            error={errors.username}
-          />
-          <FormInput
-            id="email"
-            label="Gmail Address"
-            placeholder="Enter your email address"
-            icon="mail"
-            type="email"
-            value={form.email}
-            onChange={handleChange("email")}
-            error={errors.email}
-          />
-          <FormInput
-            id="mobile_number"
-            label="Mobile Number"
-            placeholder="Enter your 10-digit mobile number"
-            icon="phone"
-            type="tel"
-            value={form.mobile_number}
-            onChange={handleChange("mobile_number")}
-            error={errors.mobile_number}
-            maxLength={10}
-          />
-          <FormInput
-            id="password"
-            label="Password"
-            placeholder="Create a password"
-            icon="lock"
-            type="password"
-            value={form.password}
-            onChange={handleChange("password")}
-            error={errors.password}
-            showPassword
-            onTogglePassword={() => setShowPassword((s) => !s)}
-          />
-          <FormInput
-            id="confirm_password"
-            label="Confirm Password"
-            placeholder="Re-enter your password"
-            icon="lock"
-            type="password"
-            value={form.confirm_password}
-            onChange={handleChange("confirm_password")}
-            error={errors.confirm_password}
-            showPassword={showConfirmPassword}
-            onTogglePassword={() => setShowConfirmPassword((s) => !s)}
-          />
+            <FormInput
+              id="farm_name"
+              label="Farm Name"
+              placeholder="Enter your farm name"
+              icon="farm"
+              value={form.farm_name}
+              onChange={handleChange("farm_name")}
+              error={errors.farm_name}
+            />
+            <FormInput
+              id="username"
+              label="Farmer Username"
+              placeholder="Create a username"
+              icon="user"
+              value={form.username}
+              onChange={handleChange("username")}
+              error={errors.username}
+            />
+            <FormInput
+              id="email"
+              label="Gmail Address"
+              placeholder="Enter your email address"
+              icon="mail"
+              type="email"
+              value={form.email}
+              onChange={handleChange("email")}
+              error={errors.email}
+            />
+            <FormInput
+              id="mobile_number"
+              label="Mobile Number"
+              placeholder="Enter your 10-digit mobile number"
+              icon="phone"
+              type="tel"
+              value={form.mobile_number}
+              onChange={handleChange("mobile_number")}
+              error={errors.mobile_number}
+              maxLength={10}
+            />
+            <FormInput
+              id="password"
+              label="Password"
+              placeholder="Create a password"
+              icon="lock"
+              type="password"
+              value={form.password}
+              onChange={handleChange("password")}
+              error={errors.password}
+              showPassword={showPassword}
+              onTogglePassword={() => setShowPassword((s) => !s)}
+            />
+            <FormInput
+              id="confirm_password"
+              label="Confirm Password"
+              placeholder="Re-enter your password"
+              icon="lock"
+              type="password"
+              value={form.confirm_password}
+              onChange={handleChange("confirm_password")}
+              error={errors.confirm_password}
+              showPassword={showConfirmPassword}
+              onTogglePassword={() => setShowConfirmPassword((s) => !s)}
+            />
 
-            <button type="submit" className="btn-auth-primary" disabled={loading}>
+            <button
+              type="submit"
+              className="btn-auth-primary"
+              disabled={loading}
+            >
               {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>

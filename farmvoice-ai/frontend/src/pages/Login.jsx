@@ -154,7 +154,7 @@ export default function Login() {
               value={form.password}
               onChange={handleChange("password")}
               error={errors.password}
-              showPassword
+              showPassword={showPassword}
               onTogglePassword={() => setShowPassword((s) => !s)}
             />
             <div className="auth-forgot">
@@ -163,7 +163,11 @@ export default function Login() {
               </a>
             </div>
 
-            <button type="submit" className="btn-auth-primary" disabled={loading}>
+            <button
+              type="submit"
+              className="btn-auth-primary"
+              disabled={loading}
+            >
               {loading ? "Signing in..." : "Login"}
             </button>
           </form>
