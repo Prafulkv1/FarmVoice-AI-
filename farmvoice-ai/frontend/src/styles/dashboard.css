@@ -903,3 +903,305 @@
     margin-right: 4px;
   }
 }
+
+/* ============================================================================
+   Farmer Profile Management (Phase 1)
+   ============================================================================ */
+
+.profile-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 1rem 4rem;
+}
+
+.profile-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  gap: 10px;
+  color: var(--color-text-secondary);
+}
+
+.profile-loading svg {
+  color: var(--color-primary);
+}
+
+/* Section cards */
+.profile-section-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-input-bg);
+}
+
+.profile-section-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.profile-section-icon svg {
+  color: #ffffff;
+}
+
+.profile-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.profile-section-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin: 2px 0 0;
+}
+
+.profile-section-body {
+  padding: 20px;
+}
+
+/* Two-column form grid within sections */
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.form-select {
+  width: 100%;
+  height: 48px;
+  padding: 0 12px;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-select::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.form-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(23, 76, 60, 0.12);
+}
+
+.form-select:invalid {
+  border-color: var(--color-error);
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 10px;
+}
+
+/* Multi-crop selection */
+.crop-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.crop-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-card);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.crop-pill:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.crop-pill-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.crop-pill svg {
+  flex-shrink: 0;
+}
+
+.input-wrapper-inline {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.input-wrapper-inline .form-input {
+  flex: 1;
+}
+
+.btn-add-crop {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-add-crop:not(:disabled):hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-add-crop:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  margin: 4px 6px 4px 0;
+  background: var(--color-active-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.chip-remove {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.chip-remove:hover {
+  background: var(--color-border);
+  color: var(--color-error);
+}
+
+/* Notification toggle */
+.toggle-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-input-bg);
+}
+
+.toggle-btn {
+  flex: 1;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.toggle-btn:hover {
+  color: var(--color-primary);
+}
+
+.toggle-btn.toggle-active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+/* Read-only inputs (e.g. email) */
+.form-input.read-only {
+  background: #ffffff;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* Save action bar */
+.profile-actions {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.actions-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.btn-icon {
+  margin-right: 6px;
+}
+
+@media (max-width: 640px) {
+  .profile-page {
+    padding: 0 1rem 3rem;
+  }
+  .profile-section-body {
+    padding: 16px;
+  }
+  .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .toggle-group {
+    flex-direction: column;
+  }
+  .toggle-btn {
+    border-radius: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .toggle-btn:last-child {
+    border-bottom: none;
+  }
+}

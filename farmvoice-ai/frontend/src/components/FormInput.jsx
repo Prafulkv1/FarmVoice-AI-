@@ -20,6 +20,7 @@ export default function FormInput({
   icon,
   showPassword = false,
   onTogglePassword,
+  readOnly = false,
 }) {
   // Use the showPassword prop from the parent so visibility is controlled externally.
   // The parent owns the useState and passes the current value down.
@@ -36,10 +37,11 @@ export default function FormInput({
         <input
           id={id}
           type={displayType}
-          className={`form-input${error ? " error" : ""}`}
+          className={`form-input${error ? " error" : ""}${readOnly ? " read-only" : ""}`}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          readOnly={readOnly}
         />
         {icon === "lock" && (
           <button

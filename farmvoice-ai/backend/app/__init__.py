@@ -50,6 +50,9 @@ def create_app(config_class=Config):
     from app.routes.auth_routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/api")
 
+    from app.routes.profile_routes import profile_bp
+    app.register_blueprint(profile_bp, url_prefix="/api")
+
     # Create database tables
     with app.app_context():
         db.create_all()
