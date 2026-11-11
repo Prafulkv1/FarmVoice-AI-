@@ -53,6 +53,9 @@ def create_app(config_class=Config):
     from app.routes.profile_routes import profile_bp
     app.register_blueprint(profile_bp, url_prefix="/api")
 
+    from app.routes.farm_diary_routes import farm_diary_bp
+    app.register_blueprint(farm_diary_bp, url_prefix="/api/farm-diary")
+
     # Create database tables
     with app.app_context():
         db.create_all()

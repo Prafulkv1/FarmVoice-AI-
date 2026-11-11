@@ -4,7 +4,7 @@ from app import db
 
 
 class FarmerCrop(db.Model):
-    """Farmer crops table: normalized multi-crop selection per farmer."""
+    """Farmer crops table: crops cultivated by a farmer (Phase 1 + Phase 2)."""
 
     __tablename__ = "farmer_crops"
 
@@ -16,8 +16,22 @@ class FarmerCrop(db.Model):
         index=True,
     )
     crop_name = db.Column(db.String(100), nullable=False)
+    crop_variety = db.Column(db.String(100), nullable=True)
+    land_area = db.Column(db.Numeric(6, 2), nullable=True)
+    sowing_date = db.Column(db.Date, nullable=True)
+    expected_harvest_date = db.Column(db.Date, nullable=True)
+    season = db.Column(db.String(20), nullable=True)
+    crop_status = db.Column(
+        db.String(20), nullable=True, default="Planned"
+    )
     created_at = db.Column(
         db.DateTime, nullable=False, default=db.func.current_timestamp()
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=True,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
     )
 
     __table_args__ = (
@@ -30,7 +44,18 @@ class FarmerCrop(db.Model):
             "crop_id": self.crop_id,
             "user_id": self.user_id,
             "crop_name": self.crop_name,
+            "crop_variety": self.crop_variety,
+            "land_area": float(self.land_area) if self.land_area is not None else None,
+            "sowing_date": self.sowing_date.isoformat() if self.sowing_date else None,
+            "expected_harvest_date": (
+                self.expected_harvest_date.isoformat()
+                if self.expected_harvest_date
+                else None
+            ),
+            "season": self.season,
+            "crop_status": self.crop_status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def __repr__(self):  # pragma: no cover - debug only

@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
+import FarmDiary from "./pages/FarmDiary";
 import AIAssistant from "./pages/AIAssistant";
 import MyFarm from "./pages/MyFarm";
 import CropInfo from "./pages/CropInfo";
@@ -53,6 +54,7 @@ export default function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="farm-diary" element={<FarmDiary />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="ai-assistant" element={<AIAssistant />} />
           <Route path="my-farm" element={<MyFarm />} />

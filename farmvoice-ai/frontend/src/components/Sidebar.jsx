@@ -16,6 +16,7 @@ import "../styles/dashboard.css";
 
 const sidebarLinks = [
   { name: "Dashboard", to: "/dashboard", icon: Layout },
+  { name: "Farm Diary", to: "/farm-diary", icon: Layout },
   { name: "AI Assistant", to: "/ai-assistant", icon: Bot },
   { name: "My Farm", to: "/my-farm", icon: Building2 },
   { name: "Crop Information", to: "/crop-info", icon: Crop },
