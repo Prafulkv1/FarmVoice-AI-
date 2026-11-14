@@ -1,29 +1,33 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
   Save,
-  Loader2,
+  Edit3,
+  X,
+  CheckCircle2,
   AlertCircle,
-  CheckCircle,
-  User,
-  MapPin,
+  Loader2,
   Sprout,
-  Globe,
+  Mail,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 
 import { useAuth } from "../components/AuthProvider";
 import { profileService } from "../services/profileService";
-import { validateProfile } from "../utils/profileValidation";
+import {
+  validateProfile,
+  calculateCompletion,
+} from "../utils/profileValidation";
 
 import PersonalInformation from "../components/profile/PersonalInformation";
 import LocationInformation from "../components/profile/LocationInformation";
 import FarmingInformation from "../components/profile/FarmingInformation";
 import LanguagePreferences from "../components/profile/LanguagePreferences";
 
-import "../styles/dashboard.css";
+import "../styles/profile.css";
 
-const initialForm = {
+const defaultFormState = {
   full_name: "",
   email: "",
   mobile_number: "",
@@ -41,326 +45,460 @@ const initialForm = {
   main_crops: [],
 };
 
-const SECTIONS = [
-  {
-    id: "personal",
-    title: "Personal Information",
-    description: "Manage your personal details",
-    icon: User,
-  },
-  {
-    id: "location",
-    title: "Location Information",
-    description: "Enter your farm location",
-    icon: MapPin,
-  },
-  {
-    id: "farming",
-    title: "Farming Information",
-    description: "Manage your farm details",
-    icon: Sprout,
-  },
-  {
-    id: "language",
-    title: "Language Preferences",
-    description: "Choose your preferred language",
-    icon: Globe,
-  },
-];
-
-const componentMap = {
-  personal: PersonalInformation,
-  location: LocationInformation,
-  farming: FarmingInformation,
-  language: LanguagePreferences,
-};
-
-const mapProfileToForm = (profile, user) => {
-  return {
-    ...initialForm,
-    ...(profile || {}),
-
-    full_name:
-      profile?.full_name ||
-      profile?.farmer_name ||
-      user?.full_name ||
-      user?.name ||
-      user?.username ||
-      "",
-
-    email: profile?.email || user?.email || "",
-
-    mobile_number:
-      profile?.mobile_number ||
-      user?.mobile_number ||
-      user?.phone ||
-      "",
-
-    total_land_size:
-      profile?.total_land_size != null
-        ? String(profile.total_land_size)
-        : "",
-
-    farming_experience:
-      profile?.farming_experience != null
-        ? String(profile.farming_experience)
-        : "",
-
-    preferred_language:
-      profile?.preferred_language || "English",
-
-    notifications_enabled:
-      profile?.notifications_enabled ?? true,
-
-    main_crops: Array.isArray(profile?.main_crops)
-      ? profile.main_crops
-      : [],
-  };
-};
-
 export default function Profile() {
   const navigate = useNavigate();
+
   const { user, isAuthenticated, checking } = useAuth();
 
-  const [form, setForm] = useState(initialForm);
-  const [activeSection, setActiveSection] = useState("personal");
-  const [errors, setErrors] = useState({});
+  const [form, setForm] = useState(defaultFormState);
+  const [originalForm, setOriginalForm] = useState(defaultFormState);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isNewProfile, setIsNewProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
   const [successMessage, setSuccessMessage] = useState("");
   const [serverError, setServerError] = useState("");
 
-  const fetchProfile = useCallback(async () => {
+  // Calculate dynamic profile completion percentage
+  const completion = useMemo(() => {
+    return calculateCompletion(form);
+  }, [form]);
+
+  // Extract avatar initials
+  const initials = useMemo(() => {
+    const name = (form.full_name || user?.farm_name || user?.username || "Farmer").trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase() || "FA";
+  }, [form.full_name, user]);
+
+  // Fetch farmer profile from MySQL backend
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       setServerError("");
+      const res = await profileService.getProfile();
+      const data = res.data;
 
-      const response = await profileService.getProfile();
-
-      const profileData =
-        response?.data?.profile ||
-        response?.data?.farmer ||
-        response?.data?.user ||
-        response?.profile ||
-        response?.farmer ||
-        response?.data ||
-        response;
-
-      setForm(mapProfileToForm(profileData, user));
-    } catch (error) {
-      console.error("Profile fetching error:", error);
-
-      if (error?.response?.status === 401) {
+      if (data && data.profile) {
+        // Existing profile retrieved
+        const p = data.profile;
+        const normalized = {
+          full_name: p.full_name || user?.farm_name || user?.username || "",
+          email: p.email || data.email || user?.email || "",
+          mobile_number: p.mobile_number || user?.mobile_number || "",
+          state: p.state || "",
+          district: p.district || "",
+          taluk: p.taluk || "",
+          village: p.village || "",
+          pin_code: p.pin_code || "",
+          total_land_size:
+            p.total_land_size !== null && p.total_land_size !== undefined
+              ? String(p.total_land_size)
+              : "",
+          soil_type: p.soil_type || "",
+          irrigation_type: p.irrigation_type || "",
+          farming_experience:
+            p.farming_experience !== null && p.farming_experience !== undefined
+              ? String(p.farming_experience)
+              : "",
+          preferred_language: p.preferred_language || "English",
+          notifications_enabled: p.notifications_enabled !== false,
+          main_crops: Array.isArray(p.main_crops) ? p.main_crops : [],
+        };
+        setForm(normalized);
+        setOriginalForm(normalized);
+        setIsNewProfile(false);
+      } else {
+        // No profile created yet for this farmer account
+        const initial = {
+          ...defaultFormState,
+          full_name: user?.farm_name || user?.username || "",
+          email: user?.email || data?.email || "",
+          mobile_number: user?.mobile_number || "",
+        };
+        setForm(initial);
+        setOriginalForm(initial);
+        setIsNewProfile(true);
+      }
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+      if (err.response?.status === 401) {
         navigate("/login");
         return;
       }
-
-      setServerError(
-        error?.response?.data?.message ||
-          "Unable to load profile information."
-      );
-
-      setForm(mapProfileToForm(null, user));
+      if (err.response?.status === 403) {
+        setServerError("Access denied. You do not have permission to view this profile.");
+        return;
+      }
+      if (err.response?.status === 500) {
+        setServerError("Server encountered an error while loading your profile. Please retry.");
+        return;
+      }
+      if (!err.response) {
+        setServerError("Unable to connect to the FarmVoice AI server. Please check backend connection.");
+        return;
+      }
+      setServerError(err.response?.data?.message || "Failed to load profile.");
     } finally {
       setLoading(false);
     }
-  }, [navigate, user]);
+  }, [user, navigate]);
 
+  // Authentication and initial profile loading
   useEffect(() => {
-    if (checking) return;
-
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
+    if (!checking) {
+      if (!isAuthenticated) {
+        navigate("/login");
+      } else {
+        loadProfile();
+      }
     }
+  }, [checking, isAuthenticated, navigate, loadProfile]);
 
-    fetchProfile();
-  }, [checking, isAuthenticated, navigate, fetchProfile]);
-
-  const handleChange = (key, value) => {
+  const handleFieldChange = (field, value) => {
     setForm((prev) => ({
       ...prev,
-      [key]: value,
+      [field]: value,
     }));
 
-    setErrors((prev) => {
-      if (!prev[key]) return prev;
-
-      const updatedErrors = { ...prev };
-      delete updatedErrors[key];
-      return updatedErrors;
-    });
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
 
     setSuccessMessage("");
     setServerError("");
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    setErrors({});
+    setSuccessMessage("");
+    setServerError("");
+  };
+
+  const handleCancelEdit = () => {
+    setForm(originalForm);
+    setErrors({});
+    setSuccessMessage("");
+    setServerError("");
+    setIsEditing(false);
+  };
+
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
 
     setSuccessMessage("");
     setServerError("");
 
-    const validationErrors = validateProfile(form) || {};
-    setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      const firstError = Object.keys(validationErrors)[0];
-
-      const sectionMap = {
-        full_name: "personal",
-        mobile_number: "personal",
-        state: "location",
-        district: "location",
-        taluk: "location",
-        village: "location",
-        pin_code: "location",
-        total_land_size: "farming",
-        soil_type: "farming",
-        irrigation_type: "farming",
-        farming_experience: "farming",
-        main_crops: "farming",
-        preferred_language: "language",
-      };
-
-      setActiveSection(sectionMap[firstError] || "personal");
+    // Frontend validation
+    const valErrors = validateProfile(form);
+    if (Object.keys(valErrors).length > 0) {
+      setErrors(valErrors);
+      setServerError("Please correct the highlighted fields before saving your profile.");
+      window.scrollTo({ top: 120, behavior: "smooth" });
       return;
     }
 
     try {
       setSaving(true);
+      const res = await profileService.saveProfile(form);
 
-      await profileService.saveProfile(form);
+      if (res.data?.success) {
+        const saved = res.data.profile;
+        const normalized = {
+          full_name: saved.full_name || form.full_name,
+          email: saved.email || form.email,
+          mobile_number: saved.mobile_number || form.mobile_number,
+          state: saved.state || "",
+          district: saved.district || "",
+          taluk: saved.taluk || "",
+          village: saved.village || "",
+          pin_code: saved.pin_code || "",
+          total_land_size:
+            saved.total_land_size !== null && saved.total_land_size !== undefined
+              ? String(saved.total_land_size)
+              : "",
+          soil_type: saved.soil_type || "",
+          irrigation_type: saved.irrigation_type || "",
+          farming_experience:
+            saved.farming_experience !== null && saved.farming_experience !== undefined
+              ? String(saved.farming_experience)
+              : "",
+          preferred_language: saved.preferred_language || "English",
+          notifications_enabled: saved.notifications_enabled !== false,
+          main_crops: Array.isArray(saved.main_crops) ? saved.main_crops : [],
+        };
 
-      setSuccessMessage("Profile updated successfully!");
-      setErrors({});
-
-      await fetchProfile();
-    } catch (error) {
-      console.error("Profile saving error:", error);
-
-      setServerError(
-        error?.response?.data?.message ||
-          "Unable to update profile. Please try again."
-      );
+        setForm(normalized);
+        setOriginalForm(normalized);
+        setIsEditing(false);
+        setIsNewProfile(false);
+        setErrors({});
+        setSuccessMessage(res.data.message || "Profile saved successfully!");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    } catch (err) {
+      console.error("Save profile error:", err);
+      if (err.response?.status === 401) {
+        navigate("/login");
+        return;
+      }
+      if (err.response?.status === 400 || err.response?.status === 422) {
+        const beErrors = err.response?.data?.errors;
+        if (beErrors && typeof beErrors === "object") {
+          setErrors(beErrors);
+        }
+        setServerError(
+          err.response?.data?.message || "Validation failed. Please review your details."
+        );
+      } else if (err.response?.status === 500) {
+        setServerError("Server error occurred while saving profile. Please try again.");
+      } else if (!err.response) {
+        setServerError("Network error: unable to reach the server. Please check backend connection.");
+      } else {
+        setServerError(err.response?.data?.message || "Failed to save profile.");
+      }
+      window.scrollTo({ top: 120, behavior: "smooth" });
     } finally {
       setSaving(false);
     }
   };
 
-  if (checking) {
+  // Authentication loading
+  if (checking || loading) {
     return (
-      <div className="profile-loading">
-        <Loader2 size={32} className="spin" />
-        <p>Checking authentication...</p>
+      <div className="profile-container">
+        <div className="profile-state-screen">
+          <Loader2 size={36} className="spin" />
+          <h3>Loading Farmer Profile</h3>
+          <p>Connecting to FarmVoice AI database...</p>
+        </div>
       </div>
     );
   }
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
+  const farmerDisplayName =
+    form.full_name || user?.farm_name || user?.username || "Farmer";
 
-  if (loading) {
-    return (
-      <div className="profile-loading">
-        <Loader2 size={32} className="spin" />
-        <p>Loading your profile...</p>
-      </div>
-    );
-  }
-
-  const ActiveComponent = componentMap[activeSection];
-
+  // Profile loading
   return (
-    <div className="profile-page">
-      <div className="profile-header">
-        <div>
-          <h1>My Profile</h1>
-          <p>Manage your personal details and farming information.</p>
+    <div className="profile-container">
+      {/* Hero Header */}
+      <div className="profile-hero">
+        <div className="profile-hero-content">
+          <div className="profile-hero-main">
+            <div className="profile-hero-avatar">{initials}</div>
+            <div className="profile-hero-details">
+              <h1>{farmerDisplayName}</h1>
+              <p className="profile-hero-email">
+                <Mail size={15} />
+                <span>{form.email || user?.email || "No email available"}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="profile-hero-meta">
+            <div className="profile-hero-completion">
+              <div className="completion-label-row">
+                <span>Profile Completion</span>
+                <span className="completion-percentage-text">
+                  {completion.percentage}%
+                </span>
+              </div>
+              <div className="completion-progress-track">
+                <div
+                  className="completion-progress-fill"
+                  style={{ width: `${completion.percentage}%` }}
+                />
+              </div>
+              <p className="completion-subtext">
+                {completion.isComplete
+                  ? "All required profile sections are complete!"
+                  : `${completion.missing.length} required field(s) pending`}
+              </p>
+            </div>
+
+            <div className="profile-hero-actions">
+              {!isEditing ? (
+                <button
+                  type="button"
+                  className="btn-hero-edit"
+                  onClick={handleStartEdit}
+                >
+                  <Edit3 size={17} />
+                  <span>Edit Profile</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn-hero-cancel"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    <X size={17} />
+                    <span>Cancel</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-hero-save"
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 size={17} className="spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={17} />
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Feedback Alert Banners */}
       {successMessage && (
         <div className="profile-alert success">
-          <CheckCircle size={20} />
-          <span>{successMessage}</span>
+          <CheckCircle2 size={20} className="profile-alert-icon" />
+          <div className="profile-alert-content">
+            <strong>Success!</strong>
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            className="profile-alert-close"
+            onClick={() => setSuccessMessage("")}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 
       {serverError && (
         <div className="profile-alert error">
-          <AlertCircle size={20} />
-          <span>{serverError}</span>
+          <AlertCircle size={20} className="profile-alert-icon" />
+          <div className="profile-alert-content">
+            <strong>Action Needed</strong>
+            <span>{serverError}</span>
+          </div>
+          <button
+            type="button"
+            className="profile-alert-close"
+            onClick={() => setServerError("")}
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
 
-      <div className="profile-layout">
-        <aside className="profile-sidebar">
-          <div className="profile-sidebar-heading">
-            <h3>Profile Settings</h3>
-            <p>Update your information</p>
+      {/* Empty Profile State for Newly Registered Farmers */}
+      {isNewProfile && !isEditing && (
+        <div className="welcome-empty-banner">
+          <div className="welcome-icon-bubble">
+            <Sprout size={32} />
           </div>
+          <h2>Welcome to FarmVoice AI, {farmerDisplayName}!</h2>
+          <p>
+            You haven't set up your farming details yet. Completing your profile
+            enables customized AI voice assistance in your native language, accurate
+            weather updates for your village, and tailored crop management advice.
+          </p>
+          <button
+            type="button"
+            className="btn-start-profile"
+            onClick={handleStartEdit}
+          >
+            <span>Complete Your Profile Now</span>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
 
-          <nav className="profile-section-nav">
-            {SECTIONS.map((section) => {
-              const Icon = section.icon;
+      {/* Profile Form / Sections */}
+      <form onSubmit={handleSaveProfile} noValidate>
+        <div className="profile-sections-wrapper">
+          {/* Section A: Personal Information */}
+          <PersonalInformation
+            form={form}
+            onChange={handleFieldChange}
+            errors={errors}
+            isEditing={isEditing}
+          />
 
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  className={`profile-nav-item ${
-                    activeSection === section.id ? "active" : ""
-                  }`}
-                  onClick={() => setActiveSection(section.id)}
-                >
-                  <Icon size={19} />
+          {/* Section B: Location Information */}
+          <LocationInformation
+            form={form}
+            onChange={handleFieldChange}
+            errors={errors}
+            isEditing={isEditing}
+          />
 
-                  <div className="profile-nav-text">
-                    <span>{section.title}</span>
-                    <small>{section.description}</small>
-                  </div>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+          {/* Section C: Farming Information */}
+          <FarmingInformation
+            form={form}
+            onChange={handleFieldChange}
+            errors={errors}
+            isEditing={isEditing}
+          />
 
-        <main className="profile-content">
-          <form onSubmit={handleSubmit}>
-            {ActiveComponent && (
-              <ActiveComponent
-                value={form}
-                onChange={handleChange}
-                error={errors}
-                email={form.email}
-                user={user}
-              />
-            )}
+          {/* Section D: Language & Notification Preferences */}
+          <LanguagePreferences
+            form={form}
+            onChange={handleFieldChange}
+            errors={errors}
+            isEditing={isEditing}
+          />
 
-            <div className="profile-form-actions">
+          {/* Bottom Action Bar in Edit Mode */}
+          {isEditing && (
+            <div className="profile-bottom-actions">
+              <button
+                type="button"
+                className="btn-bottom-cancel"
+                onClick={handleCancelEdit}
+                disabled={saving}
+              >
+                <X size={16} />
+                <span>Cancel</span>
+              </button>
               <button
                 type="submit"
-                className="btn-save-profile"
+                className="btn-bottom-save"
                 disabled={saving}
               >
                 {saving ? (
                   <>
                     <Loader2 size={18} className="spin" />
-                    Saving...
+                    <span>Saving Profile...</span>
                   </>
                 ) : (
                   <>
                     <Save size={18} />
-                    Save Changes
+                    <span>Save Changes</span>
                   </>
                 )}
               </button>
             </div>
-          </form>
-        </main>
-      </div>
+          )}
+        </div>
+      </form>
     </div>
   );
 }

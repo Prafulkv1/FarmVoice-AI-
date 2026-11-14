@@ -7,6 +7,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
     set_access_cookies,
     unset_jwt_cookies,
+    get_csrf_token,
 )
 
 from app.services.auth_service import AuthService
@@ -18,6 +19,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/auth/register", methods=["POST"])
 def register():
     """Register a new farmer."""
+
     data = request.get_json(silent=True) or {}
 
     errors, cleaned = validate_registration(data)
@@ -56,7 +58,30 @@ def login():
 
     result = make_response(jsonify(response), 200)
 
-    set_access_cookies(result, token_info["access_token"])
+    access_token = token_info["access_token"]
+
+    set_access_cookies(result, access_token)
+
+    # Obtain the CSRF token from the generated JWT.
+    csrf_token = get_csrf_token(access_token)
+
+    # Expose the CSRF token in a readable response cookie.
+    # This preserves the double-submit CSRF protection pattern.
+    from flask import current_app
+
+    csrf_cookie_name = current_app.config.get(
+        "JWT_ACCESS_CSRF_COOKIE_NAME",
+        "csrf_access_token"
+    )
+
+    result.set_cookie(
+        csrf_cookie_name,
+        csrf_token,
+        httponly=False,
+        secure=current_app.config.get("JWT_COOKIE_SECURE", False),
+        samesite=current_app.config.get("JWT_COOKIE_SAMESITE", "Lax"),
+        path=current_app.config.get("JWT_ACCESS_CSRF_COOKIE_PATH", "/")
+    )
 
     return result
 

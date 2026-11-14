@@ -1,202 +1,320 @@
 import { useState } from "react";
-import FormInput from "../FormInput";
-import { Leaf, Plus, X } from "lucide-react";
-import "../../styles/dashboard.css";
+import { Sprout, Layers, Droplets, Calendar, Plus, X, Check } from "lucide-react";
+import { SOIL_TYPES, IRRIGATION_TYPES, MAIN_CROPS } from "../../utils/profileValidation";
 
-const SOIL_TYPES = [
-  "Alluvial",
-  "Black",
-  "Red",
-  "Laterite",
-  "Desert",
-  "Mountain",
-  "Peaty",
-];
+export default function FarmingInformation({
+  form,
+  onChange,
+  errors = {},
+  isEditing = false,
+}) {
+  const [customCrop, setCustomCrop] = useState("");
+  const selectedCrops = Array.isArray(form.main_crops) ? form.main_crops : [];
 
-const IRRIGATION_TYPES = ["Rainfed", "Canal", "Tubewell", "Tank", "Drip", "Sprinkler"];
-
-const COMMON_CROPS = [
-  "Rice",
-  "Wheat",
-  "Cotton",
-  "Sugarcane",
-  "Ragi",
-  "Maize",
-  "Pulses",
-  "Vegetables",
-  "Coconut",
-  "Banana",
-  "Turmeric",
-  "Chilli",
-  "Tomato",
-  "Millets",
-  "Groundnut",
-  "Other",
-];
-
-export default function FarmingInformation({ value, onChange, error }) {
-  const [newCrop, setNewCrop] = useState("");
-  const crops = Array.isArray(value.main_crops) ? value.main_crops : [];
-
-  const addCrop = (name) => {
-    const trimmed = String(name || "").trim();
-    if (!trimmed) return;
-    if (crops.includes(trimmed)) return;
-    if (crops.length >= 20) return;
-    onChange("main_crops", [...crops, trimmed]);
-    setNewCrop("");
+  const toggleCrop = (cropName) => {
+    if (!cropName) return;
+    const exists = selectedCrops.includes(cropName);
+    let updated;
+    if (exists) {
+      updated = selectedCrops.filter((c) => c !== cropName);
+    } else {
+      if (selectedCrops.length >= 20) return;
+      updated = [...selectedCrops, cropName];
+    }
+    onChange("main_crops", updated);
   };
 
-  const removeCrop = (name) => {
+  const handleAddCustomCrop = (e) => {
+    if (e) e.preventDefault();
+    const trimmed = customCrop.trim();
+    if (!trimmed) return;
+    if (selectedCrops.map((c) => c.toLowerCase()).includes(trimmed.toLowerCase())) {
+      setCustomCrop("");
+      return;
+    }
+    if (selectedCrops.length >= 20) return;
+    onChange("main_crops", [...selectedCrops, trimmed]);
+    setCustomCrop("");
+  };
+
+  const removeCrop = (cropName) => {
     onChange(
       "main_crops",
-      crops.filter((c) => c !== name)
+      selectedCrops.filter((c) => c !== cropName)
     );
   };
 
-  const handleNewCropChange = (e) => setNewCrop(e.target.value);
-  const handleAddCrop = () => {
-    addCrop(newCrop);
-  };
+  if (!isEditing) {
+    return (
+      <div className="profile-section-card">
+        <div className="section-header">
+          <div className="section-header-icon">
+            <Sprout size={22} />
+          </div>
+          <div className="section-header-text">
+            <h3 className="section-title">Farming Information</h3>
+            <p className="section-subtitle">
+              Land size, soil conditions, irrigation, and primary crops
+            </p>
+          </div>
+        </div>
 
-  const isSelected = (crop) => crops.includes(crop);
+        <div className="section-body">
+          <div className="view-grid">
+            <div className="view-field">
+              <span className="view-label">Total Land Size</span>
+              <span className="view-value">
+                {form.total_land_size
+                  ? `${form.total_land_size} acres`
+                  : "Not provided"}
+              </span>
+            </div>
+
+            <div className="view-field">
+              <span className="view-label">Soil Type</span>
+              <span className="view-value">{form.soil_type || "Not provided"}</span>
+            </div>
+
+            <div className="view-field">
+              <span className="view-label">Irrigation Type</span>
+              <span className="view-value">
+                {form.irrigation_type || "Not provided"}
+              </span>
+            </div>
+
+            <div className="view-field">
+              <span className="view-label">Farming Experience</span>
+              <span className="view-value">
+                {form.farming_experience !== null &&
+                form.farming_experience !== undefined &&
+                form.farming_experience !== ""
+                  ? `${form.farming_experience} years`
+                  : "Not provided"}
+              </span>
+            </div>
+          </div>
+
+          <div className="view-full-field">
+            <span className="view-label">Main Crops Cultivated</span>
+            <div className="crops-tags-container">
+              {selectedCrops.length > 0 ? (
+                selectedCrops.map((crop) => (
+                  <span key={crop} className="crop-tag">
+                    <Sprout size={13} />
+                    {crop}
+                  </span>
+                ))
+              ) : (
+                <span className="empty-text">No crops selected yet</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <section className="profile-section-card">
-      <div className="profile-section-header">
-        <div className="profile-section-icon">
-          <Leaf size={20} />
+    <div className="profile-section-card edit-card">
+      <div className="section-header">
+        <div className="section-header-icon">
+          <Sprout size={22} />
         </div>
-        <div>
-          <h3 className="profile-section-title">Farming Information</h3>
-          <p className="profile-section-desc">
-            Tell us about your land and farming practices. Farming experience
-            is optional.
+        <div className="section-header-text">
+          <h3 className="section-title">Farming Information</h3>
+          <p className="section-subtitle">
+            Configure your farm size, soil type, irrigation source, and current crops.
           </p>
         </div>
       </div>
 
-      <div className="profile-section-body">
-        <div className="profile-form-grid">
-          <FormInput
-            id="total_land_size"
-            label="Total Land Size (acres)"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="e.g. 3.5"
-            icon={null}
-            value={value.total_land_size || ""}
-            onChange={(v) => onChange("total_land_size", v)}
-            error={error.total_land_size}
-          />
-          <div className="form-group full-width">
-            <label className="form-label">Soil Type</label>
-            <select
-              className="form-select"
-              value={value.soil_type || ""}
-              onChange={(e) => onChange("soil_type", e.target.value)}
-            >
-              <option value="">Select soil type</option>
-              {SOIL_TYPES.map((soil) => (
-                <option key={soil} value={soil}>
-                  {soil}
-                </option>
-              ))}
-            </select>
-            {error.soil_type && (
-              <span className="form-error">{error.soil_type}</span>
+      <div className="section-body">
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="total_land_size">
+              Total Land Size (in acres) <span className="req-star">*</span>
+            </label>
+            <div className="input-icon-wrapper">
+              <Layers size={18} className="input-icon" />
+              <input
+                id="total_land_size"
+                name="total_land_size"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max="9999.99"
+                className={`form-control ${errors.total_land_size ? "is-invalid" : ""}`}
+                placeholder="e.g. 4.5"
+                value={form.total_land_size ?? ""}
+                onChange={(e) => onChange("total_land_size", e.target.value)}
+              />
+            </div>
+            {errors.total_land_size ? (
+              <span className="field-error">{errors.total_land_size}</span>
+            ) : (
+              <span className="field-hint">Decimal values accepted (e.g. 2.75)</span>
             )}
           </div>
-          <div className="form-group full-width">
-            <label className="form-label">Irrigation Type</label>
-            <select
-              className="form-select"
-              value={value.irrigation_type || ""}
-              onChange={(e) => onChange("irrigation_type", e.target.value)}
-            >
-              <option value="">Select irrigation type</option>
-              {IRRIGATION_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            {error.irrigation_type && (
-              <span className="form-error">{error.irrigation_type}</span>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="soil_type">
+              Soil Type <span className="req-star">*</span>
+            </label>
+            <div className="input-icon-wrapper">
+              <Sprout size={18} className="input-icon" />
+              <select
+                id="soil_type"
+                name="soil_type"
+                className={`form-control ${errors.soil_type ? "is-invalid" : ""}`}
+                value={form.soil_type || ""}
+                onChange={(e) => onChange("soil_type", e.target.value)}
+              >
+                <option value="">-- Select Soil Type --</option>
+                {SOIL_TYPES.map((soil) => (
+                  <option key={soil} value={soil}>
+                    {soil}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {errors.soil_type && (
+              <span className="field-error">{errors.soil_type}</span>
             )}
           </div>
-          <FormInput
-            id="farming_experience"
-            label="Farming Experience (years, optional)"
-            type="number"
-            min="0"
-            placeholder="e.g. 10"
-            icon={null}
-            value={value.farming_experience || ""}
-            onChange={(v) => onChange("farming_experience", v)}
-            error={error.farming_experience}
-          />
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="irrigation_type">
+              Irrigation Type <span className="req-star">*</span>
+            </label>
+            <div className="input-icon-wrapper">
+              <Droplets size={18} className="input-icon" />
+              <select
+                id="irrigation_type"
+                name="irrigation_type"
+                className={`form-control ${errors.irrigation_type ? "is-invalid" : ""}`}
+                value={form.irrigation_type || ""}
+                onChange={(e) => onChange("irrigation_type", e.target.value)}
+              >
+                <option value="">-- Select Irrigation Method --</option>
+                {IRRIGATION_TYPES.map((irr) => (
+                  <option key={irr} value={irr}>
+                    {irr}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {errors.irrigation_type && (
+              <span className="field-error">{errors.irrigation_type}</span>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="farming_experience">
+              Farming Experience (years) <span className="optional-tag">(Optional)</span>
+            </label>
+            <div className="input-icon-wrapper">
+              <Calendar size={18} className="input-icon" />
+              <input
+                id="farming_experience"
+                name="farming_experience"
+                type="number"
+                min="0"
+                max="100"
+                className={`form-control ${errors.farming_experience ? "is-invalid" : ""}`}
+                placeholder="e.g. 12"
+                value={form.farming_experience ?? ""}
+                onChange={(e) => onChange("farming_experience", e.target.value)}
+              />
+            </div>
+            {errors.farming_experience && (
+              <span className="field-error">{errors.farming_experience}</span>
+            )}
+          </div>
         </div>
 
-        <div className="form-group full-width crops-group">
-          <label className="form-label">Main Crops Grown</label>
-          <p className="form-hint">
-            Select all crops you grow on your farm.
+        {/* Crops Selection */}
+        <div className="crops-form-section">
+          <label className="form-label">
+            Main Crops <span className="req-star">*</span>
+            <span className="selected-counter">
+              ({selectedCrops.length} selected)
+            </span>
+          </label>
+          <p className="field-hint">
+            Click on common crops to select or deselect. You can also type custom crops below.
           </p>
-          <div className="crop-pills">
-            {COMMON_CROPS.map((crop) => (
-              <button
-                key={crop}
-                type="button"
-                className={`crop-pill ${isSelected(crop) ? "crop-pill-active" : ""}`}
-                onClick={() => addCrop(crop)}
-                aria-pressed={isSelected(crop)}
-              >
-                {isSelected(crop) ? <X size={14} /> : <Leaf size={14} />}
-                {crop}
-              </button>
-            ))}
+
+          <div className="crop-selector-pills">
+            {MAIN_CROPS.map((crop) => {
+              const active = selectedCrops.includes(crop);
+              return (
+                <button
+                  key={crop}
+                  type="button"
+                  className={`crop-pill-btn ${active ? "active" : ""}`}
+                  onClick={() => toggleCrop(crop)}
+                >
+                  {active ? <Check size={14} /> : <Sprout size={14} />}
+                  <span>{crop}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="input-wrapper-inline custom-crop-form">
-            <input
-              className="form-input"
-              placeholder="Add another crop (e.g. Areca nut)"
-              value={newCrop}
-              onChange={handleNewCropChange}
-            />
+
+          {/* Add custom crop */}
+          <div className="custom-crop-row">
+            <div className="input-icon-wrapper custom-crop-input">
+              <Sprout size={18} className="input-icon" />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Add other crop (e.g. Coffee, Ginger)"
+                value={customCrop}
+                onChange={(e) => setCustomCrop(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomCrop();
+                  }
+                }}
+                maxLength={100}
+              />
+            </div>
             <button
               type="button"
               className="btn-add-crop"
-              onClick={handleAddCrop}
-              disabled={
-                !newCrop.trim() ||
-                crops.includes(newCrop.trim()) ||
-                crops.length >= 20
-              }
+              onClick={handleAddCustomCrop}
+              disabled={!customCrop.trim() || selectedCrops.length >= 20}
             >
-              <Plus size={16} /> Add
+              <Plus size={16} /> Add Crop
             </button>
           </div>
-          {crops.map((crop) => (
-            <span key={crop} className="selected-chip">
-              {crop}
-              <button
-                type="button"
-                className="chip-remove"
-                onClick={() => removeCrop(crop)}
-                aria-label={`Remove ${crop}`}
-              >
-                <X size={14} />
-              </button>
-            </span>
-          ))}
-          {error.main_crops && <span className="form-error">{error.main_crops}</span>}
-          {error["main_crops[0]"] && (
-            <span className="form-error">{error["main_crops[0]"]}</span>
+
+          {/* Currently selected crops tags with remove option */}
+          {selectedCrops.length > 0 && (
+            <div className="active-crops-chips">
+              <span className="chips-title">Selected:</span>
+              {selectedCrops.map((crop) => (
+                <span key={crop} className="active-crop-chip">
+                  <span>{crop}</span>
+                  <button
+                    type="button"
+                    className="chip-remove-btn"
+                    onClick={() => removeCrop(crop)}
+                    title={`Remove ${crop}`}
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {errors.main_crops && (
+            <span className="field-error block-error">{errors.main_crops}</span>
           )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 """FarmVoice AI - Farmer profile model."""
 
 from app import db
+from app.models.farmer_profile_crop import FarmerProfileCrop
 
 
 class FarmerProfile(db.Model):
@@ -27,7 +28,9 @@ class FarmerProfile(db.Model):
     soil_type = db.Column(db.String(50), nullable=False)
     irrigation_type = db.Column(db.String(50), nullable=False)
     farming_experience = db.Column(db.Integer, nullable=True)
-    preferred_language = db.Column(db.String(50), nullable=False, default="English")
+    preferred_language = db.Column(
+        db.String(50), nullable=False, default="English"
+    )
     notifications_enabled = db.Column(
         db.Boolean, nullable=False, default=True
     )
@@ -41,9 +44,25 @@ class FarmerProfile(db.Model):
         onupdate=db.func.current_timestamp(),
     )
 
+    # Relational crops connection
+    crops = db.relationship(
+        "FarmerProfileCrop",
+        backref="profile",
+        cascade="all, delete-orphan",
+        lazy="joined",
+        order_by="FarmerProfileCrop.id",
+    )
+
+    @property
+    def id(self):
+        """Alias profile_id for standard id usage."""
+        return self.profile_id
+
     def to_dict(self):
         """Return a dictionary representation of the profile."""
+        crop_list = [c.crop_name for c in self.crops] if self.crops else []
         return {
+            "id": self.profile_id,
             "profile_id": self.profile_id,
             "user_id": self.user_id,
             "full_name": self.full_name,
@@ -53,16 +72,24 @@ class FarmerProfile(db.Model):
             "taluk": self.taluk,
             "village": self.village,
             "pin_code": self.pin_code,
-            "total_land_size": float(self.total_land_size)
-            if self.total_land_size is not None
-            else None,
+            "total_land_size": (
+                float(self.total_land_size)
+                if self.total_land_size is not None
+                else None
+            ),
             "soil_type": self.soil_type,
             "irrigation_type": self.irrigation_type,
             "farming_experience": self.farming_experience,
             "preferred_language": self.preferred_language,
             "notifications_enabled": bool(self.notifications_enabled),
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "main_crops": crop_list,
+            "crops": crop_list,
+            "created_at": (
+                self.created_at.isoformat() if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat() if self.updated_at else None
+            ),
         }
 
     def __repr__(self):  # pragma: no cover - debug only

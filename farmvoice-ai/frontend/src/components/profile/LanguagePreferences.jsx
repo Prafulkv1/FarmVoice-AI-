@@ -1,90 +1,136 @@
-import FormInput from "../FormInput";
-import { Globe, Bell } from "lucide-react";
-import "../../styles/dashboard.css";
+import { Globe, Bell, BellOff, CheckCircle } from "lucide-react";
+import { PREFERRED_LANGUAGES } from "../../utils/profileValidation";
 
-const PREFERRED_LANGUAGES = [
-  "Kannada",
-  "Hindi",
-  "Telugu",
-  "Tamil",
-  "Malayalam",
-  "Marathi",
-  "Bengali",
-  "Punjabi",
-  "English",
-];
+export default function LanguagePreferences({
+  form,
+  onChange,
+  errors = {},
+  isEditing = false,
+}) {
+  const notifEnabled = form.notifications_enabled !== false;
 
-export default function LanguagePreferences({ value, onChange, error }) {
-  return (
-    <section className="profile-section-card">
-      <div className="profile-section-header">
-        <div className="profile-section-icon">
-          <Globe size={20} />
+  if (!isEditing) {
+    return (
+      <div className="profile-section-card">
+        <div className="section-header">
+          <div className="section-header-icon">
+            <Globe size={22} />
+          </div>
+          <div className="section-header-text">
+            <h3 className="section-title">Language &amp; Notification Preferences</h3>
+            <p className="section-subtitle">
+              Voice assistance language and regional farming alert settings
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="profile-section-title">Language &amp; Notifications</h3>
-          <p className="profile-section-desc">
-            Choose your preferred regional language and notification settings.
+
+        <div className="section-body">
+          <div className="view-grid">
+            <div className="view-field">
+              <span className="view-label">Preferred Language</span>
+              <span className="view-value">
+                {form.preferred_language || "English"}
+              </span>
+            </div>
+
+            <div className="view-field">
+              <span className="view-label">Notifications</span>
+              <div className="status-badge-wrapper">
+                {notifEnabled ? (
+                  <span className="badge badge-success">
+                    <Bell size={13} /> Enabled
+                  </span>
+                ) : (
+                  <span className="badge badge-secondary">
+                    <BellOff size={13} /> Disabled
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-section-card edit-card">
+      <div className="section-header">
+        <div className="section-header-icon">
+          <Globe size={22} />
+        </div>
+        <div className="section-header-text">
+          <h3 className="section-title">Language &amp; Notification Preferences</h3>
+          <p className="section-subtitle">
+            Configure how FarmVoice AI speaks to you and delivers critical weather alerts.
           </p>
         </div>
       </div>
 
-      <div className="profile-section-body">
-        <div className="profile-form-grid">
-          <div className="form-group full-width">
-            <label className="form-label">Preferred Language</label>
-            <select
-              className="form-select"
-              value={value.preferred_language || "English"}
-              onChange={(e) => onChange("preferred_language", e.target.value)}
-            >
-              {PREFERRED_LANGUAGES.map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang}
-                </option>
-              ))}
-            </select>
-            {error.preferred_language && (
-              <span className="form-error">{error.preferred_language}</span>
+      <div className="section-body">
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label" htmlFor="preferred_language">
+              Preferred Language <span className="req-star">*</span>
+            </label>
+            <div className="input-icon-wrapper">
+              <Globe size={18} className="input-icon" />
+              <select
+                id="preferred_language"
+                name="preferred_language"
+                className={`form-control ${errors.preferred_language ? "is-invalid" : ""}`}
+                value={form.preferred_language || "English"}
+                onChange={(e) => onChange("preferred_language", e.target.value)}
+              >
+                {PREFERRED_LANGUAGES.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {lang}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {errors.preferred_language ? (
+              <span className="field-error">{errors.preferred_language}</span>
+            ) : (
+              <span className="field-hint">
+                AI voice assistant and alerts will use this language
+              </span>
             )}
           </div>
 
-          <div className="form-group full-width notification-group">
-            <div className="notification-label-row">
-              <div className="notification-icon">
-                <Bell size={18} />
-              </div>
-              <div>
-                <label className="form-label">Notifications</label>
-                <p className="form-hint">
-                  Receive farming updates and alerts in your preferred language.
-                </p>
-              </div>
-            </div>
-            <div className="toggle-group">
+          <div className="form-group">
+            <label className="form-label">
+              Notification Alerts <span className="req-star">*</span>
+            </label>
+            <div className="toggle-button-group">
               <button
                 type="button"
-                className={`toggle-btn ${value.notifications_enabled !== false ? "toggle-active" : ""}`}
+                className={`toggle-option ${notifEnabled ? "active" : ""}`}
                 onClick={() => onChange("notifications_enabled", true)}
-                aria-pressed={value.notifications_enabled !== false}
               >
-                Enable
+                <Bell size={16} />
+                <span>Enable Notifications</span>
+                {notifEnabled && <CheckCircle size={15} className="toggle-check" />}
               </button>
+
               <button
                 type="button"
-                className={`toggle-btn ${value.notifications_enabled === false ? "toggle-active" : ""}`}
+                className={`toggle-option ${!notifEnabled ? "active" : ""}`}
                 onClick={() => onChange("notifications_enabled", false)}
-                aria-pressed={value.notifications_enabled === false}
               >
-                Disable
+                <BellOff size={16} />
+                <span>Disable Notifications</span>
+                {!notifEnabled && <CheckCircle size={15} className="toggle-check" />}
               </button>
             </div>
-            {error.notifications_enabled !== undefined && (
-              <span className="form-error">{error.notifications_enabled}</span>
-            )}
+            <span className="field-hint">
+              {notifEnabled
+                ? "You will receive periodic weather forecasts, mandi price updates, and advisory."
+                : "All automatic alerts and reminders are currently muted."}
+            </span>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

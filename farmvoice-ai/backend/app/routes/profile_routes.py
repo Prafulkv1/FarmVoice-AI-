@@ -1,7 +1,6 @@
 """FarmVoice AI - Farmer profile routes (Flask blueprint)."""
 
 from flask import Blueprint, jsonify, request
-
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.services.profile_service import ProfileService
@@ -28,8 +27,8 @@ def get_profile():
 def save_profile():
     """Create or update the authenticated farmer's profile.
 
-    The user_id is always taken from the verified JWT - never from the
-    request body - so a farmer can never access another farmer's profile.
+    The user_id is extracted directly from the verified JWT - never from the
+    request payload - guaranteeing a farmer can only create or edit their own profile.
     """
     try:
         user_id = int(get_jwt_identity())
@@ -37,7 +36,6 @@ def save_profile():
         return jsonify({"success": False, "message": "Invalid user identity."}), 401
 
     data = request.get_json(silent=True) or {}
-
     errors, cleaned = validate_profile(data)
     if errors:
         return jsonify({
@@ -47,4 +45,17 @@ def save_profile():
         }), 400
 
     response, status_code = ProfileService.save_profile(user_id, cleaned)
+    return jsonify(response), status_code
+
+
+@profile_bp.route("/profile/completion", methods=["GET"])
+@jwt_required()
+def get_profile_completion():
+    """Return the profile completion percentage and missing fields."""
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid user identity."}), 401
+
+    response, status_code = ProfileService.get_completion(user_id)
     return jsonify(response), status_code
