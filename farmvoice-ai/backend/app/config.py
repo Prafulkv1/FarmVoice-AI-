@@ -96,7 +96,7 @@ class Config:
     # AI Provider & Model configuration
     AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini").lower().strip()
     AI_API_KEY = os.environ.get("AI_API_KEY", "").strip()
-    AI_MODEL = os.environ.get("AI_MODEL", "gemini-1.5-flash").strip()
+    AI_MODEL = os.environ.get("AI_MODEL", "gemini-3.5-flash").strip()
     AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.4"))
     AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "1500"))
     AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))

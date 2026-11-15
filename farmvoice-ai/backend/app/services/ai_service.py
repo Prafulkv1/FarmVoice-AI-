@@ -1,9 +1,5 @@
-"""FarmVoice AI - Reusable Multi-Provider AI Service Layer.
 
-Supports Google Gemini, OpenAI, Groq, Anthropic Claude, and local Ollama
-with configurable temperature, token limits, timeouts, robust error
-handling, and zero credential leakage.
-"""
+"""FarmVoice AI - Reusable Multi-Provider AI Service Layer."""
 
 import logging
 import requests
@@ -20,10 +16,11 @@ class AIService:
     def get_config(cls):
         """Read active AI settings from Flask configuration."""
         cfg = current_app.config
+
         return {
             "provider": cfg.get("AI_PROVIDER", "gemini").lower().strip(),
             "api_key": cfg.get("AI_API_KEY", "").strip(),
-            "model": cfg.get("AI_MODEL", "gemini-1.5-flash").strip(),
+            "model": cfg.get("AI_MODEL", "gemini-3.5-flash").strip(),
             "temperature": float(cfg.get("AI_TEMPERATURE", 0.4)),
             "max_tokens": int(cfg.get("AI_MAX_TOKENS", 1500)),
             "timeout": int(cfg.get("AI_TIMEOUT_SECONDS", 30)),
@@ -32,8 +29,9 @@ class AIService:
 
     @classmethod
     def check_health(cls):
-        """Check the status and configuration readiness of the AI service."""
+        """Check AI service configuration."""
         conf = cls.get_config()
+
         has_key = bool(conf["api_key"])
         is_local = conf["provider"] in ("ollama", "custom")
         ready = has_key or is_local
@@ -47,81 +45,90 @@ class AIService:
             "message": (
                 "AI service is operational."
                 if ready
-                else "AI service requires an API key in backend/.env (AI_API_KEY)."
+                else "AI service requires an API key in backend/.env."
             ),
         }
 
     @classmethod
     def generate_response(
-        cls, question, context_str="", language_code="en", conversation_history=None
+        cls,
+        question,
+        context_str="",
+        language_code="en",
+        conversation_history=None,
     ):
-        """Send prompt to the configured AI provider and return the response text.
+        """Generate an AI response using the configured provider."""
 
-        Returns a tuple of (result_dict, status_code).
-        result_dict contains:
-            { "success": True, "text": "...", "provider": "...", "model": "..." }
-            or
-            { "success": False, "message": "...", "error_type": "..." }
-        """
         conf = cls.get_config()
         provider = conf["provider"]
-        api_key = conf["api_key"]
 
-        # Validate configuration
-        if not api_key and provider not in ("ollama", "custom"):
+        if not conf["api_key"] and provider not in ("ollama", "custom"):
             return {
                 "success": False,
                 "error_type": "MISSING_API_KEY",
-                "message": (
-                    "AI Assistant is currently unconfigured. To activate intelligent regional guidance, "
-                    "please set AI_API_KEY (e.g. from Google AI Studio or OpenAI) in backend/.env."
-                ),
+                "message": "AI_API_KEY is missing from backend/.env.",
                 "configured": False,
             }, 503
 
-        # Prepare localized prompt
         system_prompt = AIPromptBuilder.build_system_prompt(language_code)
-        user_prompt = AIPromptBuilder.build_user_prompt(context_str, question, language_code)
+
+        user_prompt = AIPromptBuilder.build_user_prompt(
+            context_str,
+            question,
+            language_code,
+        )
 
         history = conversation_history or []
 
         try:
             if provider == "gemini":
-                return cls._call_gemini(conf, system_prompt, user_prompt, history)
+                return cls._call_gemini(
+                    conf, system_prompt, user_prompt, history
+                )
+
             elif provider in ("openai", "groq", "custom"):
-                return cls._call_openai_compatible(conf, system_prompt, user_prompt, history)
+                return cls._call_openai_compatible(
+                    conf, system_prompt, user_prompt, history
+                )
+
             elif provider == "anthropic":
-                return cls._call_anthropic(conf, system_prompt, user_prompt, history)
+                return cls._call_anthropic(
+                    conf, system_prompt, user_prompt, history
+                )
+
             elif provider == "ollama":
-                return cls._call_ollama(conf, system_prompt, user_prompt, history)
+                return cls._call_ollama(
+                    conf, system_prompt, user_prompt, history
+                )
+
             else:
-                # Default to Gemini if unrecognized
-                return cls._call_gemini(conf, system_prompt, user_prompt, history)
+                return {
+                    "success": False,
+                    "error_type": "UNSUPPORTED_PROVIDER",
+                    "message": f"Unsupported AI provider: {provider}",
+                }, 400
 
         except requests.exceptions.Timeout:
-            logger.error("AI Provider (%s) request timed out after %ds", provider, conf["timeout"])
+            logger.exception("AI provider request timed out.")
+
             return {
                 "success": False,
                 "error_type": "TIMEOUT",
-                "message": (
-                    "The AI service timed out while generating your agricultural guidance. "
-                    "Please check your network and try asking again."
-                ),
+                "message": "The AI service timed out. Please try again.",
             }, 504
 
         except requests.exceptions.ConnectionError:
-            logger.error("AI Provider (%s) network connection failed", provider)
+            logger.exception("AI provider connection failed.")
+
             return {
                 "success": False,
                 "error_type": "NETWORK_ERROR",
-                "message": (
-                    "Unable to reach the AI service. Please verify your internet connection "
-                    "or verify that the AI service endpoint is accessible."
-                ),
+                "message": "Unable to connect to the AI service.",
             }, 502
 
-        except Exception as e:
-            logger.exception("Unexpected error in AI service: %s", str(e))
+        except Exception:
+            logger.exception("Unexpected error in AI service.")
+
             return {
                 "success": False,
                 "error_type": "AI_SERVICE_ERROR",
@@ -131,29 +138,52 @@ class AIService:
                 ),
             }, 500
 
+    # ---------------------------------------------------------
+    # GOOGLE GEMINI
+    # ---------------------------------------------------------
+
     @classmethod
     def _call_gemini(cls, conf, system_prompt, user_prompt, history):
         """Call Google Gemini REST generateContent endpoint."""
-        model = conf["model"] or "gemini-1.5-flash"
-        api_key = conf["api_key"]
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
-        # Construct Gemini contents list with conversation history
+        model = conf["model"] or "gemini-3.5-flash"
+        api_key = conf["api_key"]
+
+        endpoint = (
+            "https://generativelanguage.googleapis.com/"
+            f"v1beta/models/{model}:generateContent"
+        )
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        }
+
         contents = []
 
-        # Add recent conversation history turns (up to 6 prior turns for context)
-        for h in history[-6:]:
-            role = "user" if h.get("role") == "user" else "model"
-            msg = h.get("message", "")
-            if msg:
-                contents.append({"role": role, "parts": [{"text": msg}]})
+        for item in history[-6:]:
+            role = (
+                "user"
+                if item.get("role") == "user"
+                else "model"
+            )
 
-        # Append current user prompt
-        contents.append({"role": "user", "parts": [{"text": user_prompt}]})
+            message = item.get("message", "")
+
+            if message:
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": message}],
+                })
+
+        contents.append({
+            "role": "user",
+            "parts": [{"text": user_prompt}],
+        })
 
         payload = {
             "systemInstruction": {
-                "parts": [{"text": system_prompt}]
+                "parts": [{"text": system_prompt}],
             },
             "contents": contents,
             "generationConfig": {
@@ -162,74 +192,148 @@ class AIService:
             },
         }
 
-        resp = requests.post(endpoint, json=payload, timeout=conf["timeout"])
+        logger.info(
+            "Calling Gemini | Model: %s | generateContent",
+            model,
+        )
 
-        if resp.status_code == 200:
-            data = resp.json()
-            try:
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts:
-                        text = parts[0].get("text", "")
-                        return {
-                            "success": True,
-                            "text": text,
-                            "provider": "gemini",
-                            "model": model,
-                        }, 200
+        response = requests.post(
+            endpoint,
+            headers=headers,
+            json=payload,
+            timeout=conf["timeout"],
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            candidates = data.get("candidates", [])
+
+            if not candidates:
+                logger.warning(
+                    "Gemini returned no candidates: %s",
+                    data.get("promptFeedback", {}),
+                )
+
                 return {
                     "success": False,
                     "error_type": "EMPTY_RESPONSE",
-                    "message": "The AI provider returned an empty response. Please rephrase your question.",
+                    "message": (
+                        "The AI could not generate a response. "
+                        "Please rephrase your question."
+                    ),
                 }, 502
-            except Exception as e:
-                logger.error("Error parsing Gemini response: %s", e)
+
+            candidate = candidates[0]
+
+            parts = candidate.get(
+                "content", {}
+            ).get("parts", [])
+
+            text = "\n".join(
+                part.get("text", "")
+                for part in parts
+                if part.get("text")
+            ).strip()
+
+            if not text:
                 return {
                     "success": False,
-                    "error_type": "PARSE_ERROR",
-                    "message": "Failed to parse advisory response from AI provider.",
+                    "error_type": "EMPTY_RESPONSE",
+                    "message": "Gemini returned an empty response.",
                 }, 502
 
-        if resp.status_code == 429:
             return {
-                "success": False,
-                "error_type": "RATE_LIMITED",
-                "message": "The AI service is experiencing high traffic. Please wait a few seconds and try again.",
-            }, 429
+                "success": True,
+                "text": text,
+                "provider": "gemini",
+                "model": model,
+            }, 200
 
-        if resp.status_code in (401, 403):
-            logger.error("Gemini authentication failed (status %d)", resp.status_code)
+        # Safely parse API errors.
+        try:
+            error_data = response.json().get("error", {})
+            error_message = error_data.get(
+                "message", "Unknown Gemini API error"
+            )
+            error_status = error_data.get("status", "UNKNOWN")
+
+        except ValueError:
+            error_message = "Invalid Gemini API error response."
+            error_status = "UNKNOWN"
+
+        logger.error(
+            "Gemini API error | HTTP: %s | Status: %s | Model: %s | Message: %s",
+            response.status_code,
+            error_status,
+            model,
+            error_message[:500],
+        )
+
+        if response.status_code in (401, 403):
             return {
                 "success": False,
                 "error_type": "AUTH_ERROR",
-                "message": "AI API Key authentication failed. Please verify your AI_API_KEY in backend/.env.",
+                "message": "Gemini API authentication failed.",
             }, 502
 
-        # Other API errors
-        err_detail = resp.text[:200]
-        logger.error("Gemini API error %d: %s", resp.status_code, err_detail)
+        if response.status_code == 404:
+            return {
+                "success": False,
+                "error_type": "MODEL_NOT_FOUND",
+                "message": (
+                    f"Gemini model '{model}' was not found "
+                    "or does not support generateContent."
+                ),
+            }, 502
+
+        if response.status_code == 429:
+            return {
+                "success": False,
+                "error_type": "RATE_LIMITED",
+                "message": "Gemini usage limit reached. Try again later.",
+            }, 429
+
         return {
             "success": False,
             "error_type": "API_ERROR",
-            "message": f"AI provider error (HTTP {resp.status_code}). Please try again later.",
+            "message": (
+                f"Gemini API returned HTTP {response.status_code}: "
+                f"{error_message[:250]}"
+            ),
         }, 502
 
+    # ---------------------------------------------------------
+    # OPENAI / GROQ / CUSTOM
+    # ---------------------------------------------------------
+
     @classmethod
-    def _call_openai_compatible(cls, conf, system_prompt, user_prompt, history):
-        """Call OpenAI, Groq, or OpenAI-compatible chat completions endpoint."""
+    def _call_openai_compatible(
+        cls, conf, system_prompt, user_prompt, history
+    ):
+        """Call OpenAI-compatible chat completions APIs."""
+
         provider = conf["provider"]
         model = conf["model"]
         api_key = conf["api_key"]
 
         if conf["base_url"]:
-            endpoint = f"{conf['base_url'].rstrip('/')}/chat/completions"
+            endpoint = (
+                f"{conf['base_url'].rstrip('/')}/chat/completions"
+            )
+
         elif provider == "groq":
-            endpoint = "https://api.groq.com/openai/v1/chat/completions"
+            endpoint = (
+                "https://api.groq.com/openai/v1/chat/completions"
+            )
+
             if not model or model.startswith("gemini"):
                 model = "llama-3.3-70b-versatile"
+
         else:
-            endpoint = "https://api.openai.com/v1/chat/completions"
+            endpoint = (
+                "https://api.openai.com/v1/chat/completions"
+            )
+
             if not model or model.startswith("gemini"):
                 model = "gpt-4o-mini"
 
@@ -238,11 +342,26 @@ class AIService:
             "Content-Type": "application/json",
         }
 
-        messages = [{"role": "system", "content": system_prompt}]
-        for h in history[-6:]:
-            role = "user" if h.get("role") == "user" else "assistant"
-            messages.append({"role": role, "content": h.get("message", "")})
-        messages.append({"role": "user", "content": user_prompt})
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+
+        for item in history[-6:]:
+            role = (
+                "user"
+                if item.get("role") == "user"
+                else "assistant"
+            )
+
+            messages.append({
+                "role": role,
+                "content": item.get("message", ""),
+            })
+
+        messages.append({
+            "role": "user",
+            "content": user_prompt,
+        })
 
         payload = {
             "model": model,
@@ -251,66 +370,92 @@ class AIService:
             "max_tokens": conf["max_tokens"],
         }
 
-        resp = requests.post(endpoint, json=payload, headers=headers, timeout=conf["timeout"])
+        response = requests.post(
+            endpoint,
+            json=payload,
+            headers=headers,
+            timeout=conf["timeout"],
+        )
 
-        if resp.status_code == 200:
-            data = resp.json()
+        if response.status_code == 200:
+            data = response.json()
             choices = data.get("choices", [])
+
             if choices:
-                text = choices[0].get("message", {}).get("content", "")
+                text = (
+                    choices[0]
+                    .get("message", {})
+                    .get("content", "")
+                )
+
                 return {
                     "success": True,
                     "text": text,
                     "provider": provider,
                     "model": model,
                 }, 200
+
             return {
                 "success": False,
                 "error_type": "EMPTY_RESPONSE",
                 "message": "AI provider returned an empty response.",
             }, 502
 
-        if resp.status_code == 429:
-            return {
-                "success": False,
-                "error_type": "RATE_LIMITED",
-                "message": "Rate limit exceeded. Please wait a moment and try again.",
-            }, 429
+        logger.error(
+            "%s API error: HTTP %s",
+            provider,
+            response.status_code,
+        )
 
-        if resp.status_code in (401, 403):
-            return {
-                "success": False,
-                "error_type": "AUTH_ERROR",
-                "message": "AI API Key authentication failed. Please verify your AI_API_KEY in backend/.env.",
-            }, 502
-
-        logger.error("OpenAI-compatible API error %d: %s", resp.status_code, resp.text[:200])
         return {
             "success": False,
             "error_type": "API_ERROR",
-            "message": f"AI provider error (HTTP {resp.status_code}). Please try again later.",
+            "message": (
+                f"AI provider error (HTTP {response.status_code})."
+            ),
         }, 502
 
+    # ---------------------------------------------------------
+    # ANTHROPIC CLAUDE
+    # ---------------------------------------------------------
+
     @classmethod
-    def _call_anthropic(cls, conf, system_prompt, user_prompt, history):
-        """Call Anthropic Claude API messages endpoint."""
+    def _call_anthropic(
+        cls, conf, system_prompt, user_prompt, history
+    ):
+        """Call Anthropic Claude messages endpoint."""
+
         model = conf["model"]
+
         if not model or not model.startswith("claude"):
             model = "claude-3-5-sonnet-20241022"
 
-        api_key = conf["api_key"]
         endpoint = "https://api.anthropic.com/v1/messages"
+
         headers = {
-            "x-api-key": api_key,
+            "x-api-key": conf["api_key"],
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
         }
 
         messages = []
-        for h in history[-6:]:
-            role = "user" if h.get("role") == "user" else "assistant"
-            messages.append({"role": role, "content": h.get("message", "")})
-        messages.append({"role": "user", "content": user_prompt})
+
+        for item in history[-6:]:
+            role = (
+                "user"
+                if item.get("role") == "user"
+                else "assistant"
+            )
+
+            messages.append({
+                "role": role,
+                "content": item.get("message", ""),
+            })
+
+        messages.append({
+            "role": "user",
+            "content": user_prompt,
+        })
 
         payload = {
             "model": model,
@@ -320,53 +465,95 @@ class AIService:
             "temperature": conf["temperature"],
         }
 
-        resp = requests.post(endpoint, json=payload, headers=headers, timeout=conf["timeout"])
-        if resp.status_code == 200:
-            data = resp.json()
+        response = requests.post(
+            endpoint,
+            json=payload,
+            headers=headers,
+            timeout=conf["timeout"],
+        )
+
+        if response.status_code == 200:
+            data = response.json()
             contents = data.get("content", [])
+
             if contents:
-                text = contents[0].get("text", "")
                 return {
                     "success": True,
-                    "text": text,
+                    "text": contents[0].get("text", ""),
                     "provider": "anthropic",
                     "model": model,
                 }, 200
-            return {"success": False, "message": "Empty response from Claude."}, 502
+
+            return {
+                "success": False,
+                "error_type": "EMPTY_RESPONSE",
+                "message": "Empty response from Claude.",
+            }, 502
 
         return {
             "success": False,
             "error_type": "API_ERROR",
-            "message": f"Anthropic API error (HTTP {resp.status_code}).",
+            "message": (
+                f"Anthropic API error (HTTP {response.status_code})."
+            ),
         }, 502
 
+    # ---------------------------------------------------------
+    # LOCAL OLLAMA
+    # ---------------------------------------------------------
+
     @classmethod
-    def _call_ollama(cls, conf, system_prompt, user_prompt, history):
-        """Call local Ollama server endpoint."""
+    def _call_ollama(
+        cls, conf, system_prompt, user_prompt, history
+    ):
+        """Call local Ollama server."""
+
         base = conf["base_url"] or "http://localhost:11434"
         endpoint = f"{base.rstrip('/')}/api/chat"
         model = conf["model"] or "llama3.2"
 
-        messages = [{"role": "system", "content": system_prompt}]
-        for h in history[-6:]:
-            role = "user" if h.get("role") == "user" else "assistant"
-            messages.append({"role": role, "content": h.get("message", "")})
-        messages.append({"role": "user", "content": user_prompt})
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ]
+
+        for item in history[-6:]:
+            role = (
+                "user"
+                if item.get("role") == "user"
+                else "assistant"
+            )
+
+            messages.append({
+                "role": role,
+                "content": item.get("message", ""),
+            })
+
+        messages.append({
+            "role": "user",
+            "content": user_prompt,
+        })
 
         payload = {
             "model": model,
             "messages": messages,
             "stream": False,
-            "options": {"temperature": conf["temperature"]},
+            "options": {
+                "temperature": conf["temperature"],
+            },
         }
 
-        resp = requests.post(endpoint, json=payload, timeout=conf["timeout"])
-        if resp.status_code == 200:
-            data = resp.json()
-            text = data.get("message", {}).get("content", "")
+        response = requests.post(
+            endpoint,
+            json=payload,
+            timeout=conf["timeout"],
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+
             return {
                 "success": True,
-                "text": text,
+                "text": data.get("message", {}).get("content", ""),
                 "provider": "ollama",
                 "model": model,
             }, 200
@@ -374,5 +561,7 @@ class AIService:
         return {
             "success": False,
             "error_type": "OLLAMA_ERROR",
-            "message": f"Ollama local error (HTTP {resp.status_code}).",
+            "message": (
+                f"Ollama local error (HTTP {response.status_code})."
+            ),
         }, 502
