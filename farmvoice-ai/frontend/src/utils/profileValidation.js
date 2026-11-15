@@ -65,6 +65,7 @@ export const PREFERRED_LANGUAGES = [
   "Marathi",
   "Bengali",
   "Punjabi",
+  "English",
 ];
 
 export const LAND_UNITS = ["Acres", "Hectares"];
@@ -203,14 +204,14 @@ export function validateProfile(data = {}) {
   }
 
   const soilType = String(data.soil_type || "").trim();
-  if (!soilType || !ALL_VALID_SOIL_TYPES.includes(soilType)) {
+  if (!soilType || (!ALL_VALID_SOIL_TYPES.includes(soilType) && !SOIL_TYPES.includes(soilType))) {
     errors.soil_type = "Please select a valid soil type.";
   }
 
   const irrigationType = String(data.irrigation_type || "").trim();
   if (
     !irrigationType ||
-    !ALL_VALID_IRRIGATION_TYPES.includes(irrigationType)
+    (!ALL_VALID_IRRIGATION_TYPES.includes(irrigationType) && !IRRIGATION_TYPES.includes(irrigationType))
   ) {
     errors.irrigation_type = "Please select a valid irrigation type.";
   }
@@ -292,8 +293,8 @@ export function isFieldCompleted(key, val) {
     const text = String(val).trim();
     return Boolean(
       text &&
-        text.toLowerCase() !== "not added yet" &&
-        text.toLowerCase() !== "not provided"
+      text.toLowerCase() !== "not added yet" &&
+      text.toLowerCase() !== "not provided"
     );
   }
 
@@ -319,12 +320,12 @@ export function isFieldCompleted(key, val) {
 
   if (key === "soil_type") {
     const text = String(val).trim();
-    return ALL_VALID_SOIL_TYPES.includes(text);
+    return ALL_VALID_SOIL_TYPES.includes(text) || SOIL_TYPES.includes(text);
   }
 
   if (key === "irrigation_type") {
     const text = String(val).trim();
-    return ALL_VALID_IRRIGATION_TYPES.includes(text);
+    return ALL_VALID_IRRIGATION_TYPES.includes(text) || IRRIGATION_TYPES.includes(text);
   }
 
   if (key === "main_crops") {
@@ -352,6 +353,7 @@ export function isFieldCompleted(key, val) {
 
 /**
  * Dynamic Real-Time Completion Calculation
+ * Formula: (Number of completed fields / Total required fields [15]) * 100
  * Weighted formula:
  *   - Personal Information: 20%
  *   - Location Information: 25%

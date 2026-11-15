@@ -6,7 +6,13 @@ from datetime import timedelta
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment from backend directory if present, otherwise default search
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_env_file = os.path.join(_backend_dir, ".env")
+if os.path.exists(_env_file):
+    load_dotenv(_env_file)
+else:
+    load_dotenv()
 
 
 class Config:
@@ -86,3 +92,12 @@ class Config:
     FRONTEND_URL = os.environ.get(
         "FRONTEND_URL", "http://localhost:5173"
     )
+
+    # AI Provider & Model configuration
+    AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini").lower().strip()
+    AI_API_KEY = os.environ.get("AI_API_KEY", "").strip()
+    AI_MODEL = os.environ.get("AI_MODEL", "gemini-1.5-flash").strip()
+    AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.4"))
+    AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "1500"))
+    AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
+    AI_BASE_URL = os.environ.get("AI_BASE_URL", "").strip()

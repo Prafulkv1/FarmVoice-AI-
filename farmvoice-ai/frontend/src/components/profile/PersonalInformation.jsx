@@ -26,7 +26,8 @@ export default function PersonalInformation({
               </span>
             </div>
             <p className="section-subtitle">
-              Your identity and contact details linked to your FarmVoice AI account
+              Your identity and contact details linked to your FarmVoice AI
+              account
             </p>
           </div>
         </div>
@@ -42,7 +43,9 @@ export default function PersonalInformation({
 
             <div className="view-field">
               <span className="view-label">Full Name</span>
-              <span className={`view-value ${!form.full_name ? "empty-val" : ""}`}>
+              <span
+                className={`view-value ${!form.full_name ? "empty-val" : ""}`}
+              >
                 {form.full_name || "Not added yet"}
               </span>
             </div>
@@ -61,7 +64,9 @@ export default function PersonalInformation({
 
             <div className="view-field">
               <span className="view-label">Mobile Number</span>
-              <span className={`view-value ${!form.mobile_number ? "empty-val" : ""}`}>
+              <span
+                className={`view-value ${!form.mobile_number ? "empty-val" : ""}`}
+              >
                 {form.mobile_number || "Not added yet"}
               </span>
             </div>
@@ -86,7 +91,8 @@ export default function PersonalInformation({
             </span>
           </div>
           <p className="section-subtitle">
-            Update your contact details. Email address and Farmer ID are permanently tied to your registration.
+            Update your contact details. Email address and Farmer ID are
+            permanently tied to your registration.
           </p>
         </div>
       </div>
@@ -108,7 +114,9 @@ export default function PersonalInformation({
                 disabled
               />
             </div>
-            <span className="field-hint">Unique farmer registration identifier.</span>
+            <span className="field-hint">
+              Unique farmer registration identifier.
+            </span>
           </div>
 
           <div className="form-group">
@@ -149,7 +157,9 @@ export default function PersonalInformation({
                 disabled
               />
             </div>
-            <span className="field-hint">Registered account email cannot be changed.</span>
+            <span className="field-hint">
+              Registered account email cannot be changed.
+            </span>
           </div>
 
           <div className="form-group">
@@ -175,7 +185,9 @@ export default function PersonalInformation({
             {errors.mobile_number ? (
               <span className="field-error">{errors.mobile_number}</span>
             ) : (
-              <span className="field-hint">Valid 10-digit Indian mobile number</span>
+              <span className="field-hint">
+                Valid 10-digit Indian mobile number
+              </span>
             )}
           </div>
         </div>

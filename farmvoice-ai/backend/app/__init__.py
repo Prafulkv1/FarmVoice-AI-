@@ -59,6 +59,13 @@ def create_app(config_class=Config):
     from app.routes.weather import weather_bp
     app.register_blueprint(weather_bp, url_prefix="/api/weather")
 
+    from app.routes.ai_routes import ai_bp
+    app.register_blueprint(ai_bp, url_prefix="/api/ai")
+
+    # Import all models to ensure registration with SQLAlchemy metadata
+    from app.models.ai_conversation import AIConversation
+    from app.models.ai_message import AIMessage
+
     # Create database tables
     with app.app_context():
         db.create_all()

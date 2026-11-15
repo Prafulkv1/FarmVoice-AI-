@@ -1,6 +1,16 @@
 import { useAuth } from "../components/AuthProvider";
 import { Link } from "react-router-dom";
-import { Building2, MapPin, Calendar, Phone, Mail, Sprout, ArrowRight, ShieldCheck, User } from "lucide-react";
+import {
+  Building2,
+  MapPin,
+  Calendar,
+  Phone,
+  Mail,
+  Sprout,
+  ArrowRight,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import "../styles/dashboard.css";
 
 export default function MyFarm() {
@@ -17,7 +27,8 @@ export default function MyFarm() {
         <div>
           <h1 className="page-title">My Farm Land &amp; Holdings</h1>
           <p className="page-sub">
-            Overview of your agricultural holding identity, registration, and land credentials.
+            Overview of your agricultural holding identity, registration, and
+            land credentials.
           </p>
         </div>
       </div>
@@ -29,9 +40,12 @@ export default function MyFarm() {
             <span className="live-dot" />
             <span>Registered Holding</span>
           </div>
-          <h2 className="welcome-heading" style={{ fontSize: "2rem" }}>{farmName}</h2>
+          <h2 className="welcome-heading" style={{ fontSize: "2rem" }}>
+            {farmName}
+          </h2>
           <p className="welcome-sub">
-            Farmer Account: <strong>{username}</strong> &bull; Holding ID: #{farmerId}
+            Farmer Account: <strong>{username}</strong> &bull; Holding ID: #
+            {farmerId}
           </p>
         </div>
       </div>
@@ -47,7 +61,9 @@ export default function MyFarm() {
 
         <div className="summary-grid">
           <div className="summary-card">
-            <div className="summary-icon"><Building2 size={24} /></div>
+            <div className="summary-icon">
+              <Building2 size={24} />
+            </div>
             <div className="summary-body">
               <div className="summary-label">Farm / Holding Name</div>
               <div className="summary-value">{farmName}</div>
@@ -55,7 +71,9 @@ export default function MyFarm() {
           </div>
 
           <div className="summary-card">
-            <div className="summary-icon"><User size={24} /></div>
+            <div className="summary-icon">
+              <User size={24} />
+            </div>
             <div className="summary-body">
               <div className="summary-label">Registered Farmer ID</div>
               <div className="summary-value">#{farmerId}</div>
@@ -63,7 +81,9 @@ export default function MyFarm() {
           </div>
 
           <div className="summary-card">
-            <div className="summary-icon"><Mail size={24} /></div>
+            <div className="summary-icon">
+              <Mail size={24} />
+            </div>
             <div className="summary-body">
               <div className="summary-label">Registered Email</div>
               <div className="summary-value">{email}</div>
@@ -71,7 +91,9 @@ export default function MyFarm() {
           </div>
 
           <div className="summary-card">
-            <div className="summary-icon"><Phone size={24} /></div>
+            <div className="summary-icon">
+              <Phone size={24} />
+            </div>
             <div className="summary-body">
               <div className="summary-label">Mobile Number</div>
               <div className="summary-value">{mobile}</div>
@@ -83,11 +105,14 @@ export default function MyFarm() {
       {/* Land & Soil Card Link */}
       <section className="feature-grid" style={{ marginTop: "1rem" }}>
         <div className="feature-card">
-          <div className="feature-icon"><MapPin size={22} /></div>
+          <div className="feature-icon">
+            <MapPin size={22} />
+          </div>
           <div>
             <p className="feature-title">Location &amp; Soil Records</p>
             <p className="feature-text">
-              Maintain precise records of your village, district, pin code, and total acreage in your 15-point farmer profile.
+              Maintain precise records of your village, district, pin code, and
+              total acreage in your 15-point farmer profile.
             </p>
           </div>
           <Link to="/profile" className="placeholder-link-arrow">
@@ -97,11 +122,14 @@ export default function MyFarm() {
         </div>
 
         <div className="feature-card">
-          <div className="feature-icon"><Sprout size={22} /></div>
+          <div className="feature-icon">
+            <Sprout size={22} />
+          </div>
           <div>
             <p className="feature-title">Cultivated Crops &amp; Diary</p>
             <p className="feature-text">
-              Log daily agricultural operations, fertilizer applications, and harvests in your digital Farm Diary.
+              Log daily agricultural operations, fertilizer applications, and
+              harvests in your digital Farm Diary.
             </p>
           </div>
           <Link to="/farm-diary" className="placeholder-link-arrow">
