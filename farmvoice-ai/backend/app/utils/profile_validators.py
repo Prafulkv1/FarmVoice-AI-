@@ -237,6 +237,26 @@ def validate_profile(data):
     if errors:
         return errors, None
 
+    # Dialect and voice options (optional, sensible defaults provided)
+    preferred_dialect = _clean_string(data.get("preferred_dialect")) or "standard"
+    voice_raw = data.get("voice_enabled")
+    if voice_raw is not None:
+        if isinstance(voice_raw, str):
+            voice_enabled = voice_raw.lower() in ("true", "1", "yes")
+        else:
+            voice_enabled = bool(voice_raw)
+    else:
+        voice_enabled = True
+
+    autoplay_raw = data.get("auto_play_voice")
+    if autoplay_raw is not None:
+        if isinstance(autoplay_raw, str):
+            auto_play_voice = autoplay_raw.lower() in ("true", "1", "yes")
+        else:
+            auto_play_voice = bool(autoplay_raw)
+    else:
+        auto_play_voice = False
+
     cleaned = {
         "full_name": full_name,
         "mobile_number": mobile_number,
@@ -251,6 +271,9 @@ def validate_profile(data):
         "irrigation_type": irrigation_type,
         "farming_experience": farming_experience,
         "preferred_language": preferred_language,
+        "preferred_dialect": preferred_dialect,
+        "voice_enabled": voice_enabled,
+        "auto_play_voice": auto_play_voice,
         "notifications_enabled": notifications_enabled,
         "main_crops": cleaned_crops,
     }

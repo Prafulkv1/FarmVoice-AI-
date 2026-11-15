@@ -101,3 +101,10 @@ class Config:
     AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "1500"))
     AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
     AI_BASE_URL = os.environ.get("AI_BASE_URL", "").strip()
+
+    # Sarvam AI & Regional Voice Configuration
+    SARVAM_API_KEY = os.environ.get("SARVAM_API_KEY", "").strip()
+    SARVAM_BASE_URL = os.environ.get("SARVAM_BASE_URL", "https://api.sarvam.ai").strip().rstrip("/")
+    SARVAM_SPEECH_MODEL = os.environ.get("SARVAM_SPEECH_MODEL", "saaras:v2").strip()
+    SARVAM_TTS_MODEL = os.environ.get("SARVAM_TTS_MODEL", "bulbul:v1").strip()
+    SARVAM_DEFAULT_SPEAKER = os.environ.get("SARVAM_DEFAULT_SPEAKER", "meera").strip()

@@ -17,6 +17,7 @@ class AIConversation(db.Model):
     )
     title = db.Column(db.String(255), nullable=False, default="New Farming Advisory")
     language = db.Column(db.String(10), nullable=False, default="en")
+    dialect = db.Column(db.String(50), nullable=False, default="standard")
     created_at = db.Column(
         db.DateTime, nullable=False, default=db.func.current_timestamp()
     )
@@ -43,6 +44,7 @@ class AIConversation(db.Model):
             "user_id": self.user_id,
             "title": self.title,
             "language": self.language,
+            "dialect": self.dialect or "standard",
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "message_count": len(self.messages) if self.messages else 0,

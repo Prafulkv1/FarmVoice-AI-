@@ -11,6 +11,7 @@ Tests:
 8. End-to-end question answering across all agronomic domains.
 """
 
+import io
 import unittest
 from unittest.mock import patch, MagicMock
 from app import create_app, db
@@ -22,6 +23,16 @@ from app.models.ai_message import AIMessage
 from app.services.ai_service import AIService
 from app.services.farmer_context_service import FarmerContextService
 from app.services.language_service import LanguageService, SUPPORTED_LANGUAGES
+from app.services.language_detection_service import LanguageDetectionService
+from app.services.dialect_adaptation_service import (
+    DialectAdaptationService,
+    REGIONAL_DIALECT_REGISTRY,
+)
+from app.services.speech_to_text_service import SpeechToTextService
+from app.services.text_to_speech_service import (
+    TextToSpeechService,
+    clean_text_for_speech,
+)
 from app.services.scheme_service import SchemeService
 from app.services.conversation_service import ConversationService
 from flask_jwt_extended import create_access_token
@@ -331,6 +342,285 @@ class AIAssistantTestSuite(unittest.TestCase):
                     self.assertEqual(data["language"], case["lang"])
                     self.assertEqual(data["message"], case["mock_answer"])
                     self.assertIn("context_summary", data)
+
+    # -------------------------------------------------------------------------
+    # 8. Language Detection Service (All 9 Regional Languages)
+    # -------------------------------------------------------------------------
+    def test_language_detection_all_scripts(self):
+        """Verify LanguageDetectionService identifies scripts for all 9 languages."""
+        samples = [
+            ("ನನ್ನ ರಾಗಿ ಬೆಳೆಗೆ ಎಲೆಗಳು ಹಳದಿ ಆಗ್ತಿವೆ, ಏನು ಮಾಡಬೇಕು?", "kn"),
+            ("मेरी गेहूं की फसल में दीमक का प्रकोप हो गया है", "hi"),
+            ("నా వರಿ పొలంలో కాండం తొలిచే పురుగు ఆశించింది", "te"),
+            ("எனது நெல் பயிரில் இலை சுருட்டு புழு தாக்குதல் உள்ளது", "ta"),
+            ("എന്റെ നെൽകൃഷിയിൽ ബാക്ടീരിയൽ വാട്ടം ബാധിച്ചിട്ടുണ്ട്", "ml"),
+            ("माझ्या सोयाबीन पिकावर पिवळा मोझॅक रोगाचा प्रादुर्भाव झाला आहे", "mr"),
+            ("আমার ধান ক্ষেতে খোল পচা রোগ দেখা দিয়েছে কি করব?", "bn"),
+            ("ਮੇਰੀ ਕਣਕ ਦੀ ਫਸਲ ਦੇ ਪੱਤੇ ਪੀਲੇ ਪੈ ਰਹੇ ਹਨ ਕੀ ਕਰੀਏ?", "pa"),
+            ("What is the best fertilizer dose for sugarcane in black soil?", "en"),
+        ]
+
+        for text, expected_lang in samples:
+            res = LanguageDetectionService.detect_language(text)
+            detected = res["detected_language"]
+            confidence = res["confidence"]
+            self.assertEqual(
+                detected,
+                expected_lang,
+                f"Failed detection for '{text}' -> got {detected}, expected {expected_lang}",
+            )
+            self.assertGreater(confidence, 0.5)
+
+    def test_devanagari_marathi_vs_hindi_heuristics(self):
+        """Test distinction between Marathi and Hindi in Devanagari script."""
+        # Marathi unique phoneme / marker words
+        marathi_1 = "पिकांची काळजी कशी घ्यावी आणि खत कधी टाकावे?"
+        res1 = LanguageDetectionService.detect_language(marathi_1)
+        self.assertEqual(res1["detected_language"], "mr")
+
+        marathi_2 = "माझ्या शेतात पाणी साचले आहे काय करू?"
+        res2 = LanguageDetectionService.detect_language(marathi_2)
+        self.assertEqual(res2["detected_language"], "mr")
+
+        # Standard Hindi phrases
+        hindi_1 = "फसलों का ख्याल कैसे रखें और खाद कब डालें?"
+        res3 = LanguageDetectionService.detect_language(hindi_1)
+        self.assertEqual(res3["detected_language"], "hi")
+
+        hindi_2 = "मेरे खेत में पानी भर गया है क्या करें?"
+        res4 = LanguageDetectionService.detect_language(hindi_2)
+        self.assertEqual(res4["detected_language"], "hi")
+
+    def test_transliterated_language_detection(self):
+        """Test detection of Romanized/transliterated Indian languages."""
+        kannada_translit = "nanna ragi bele haladi agide enu madodu?"
+        res1 = LanguageDetectionService.detect_language(kannada_translit)
+        self.assertEqual(res1["detected_language"], "kn")
+
+        hindi_translit = "meri fasal kharab ho rahi hai kisaan bhai kya kare?"
+        res2 = LanguageDetectionService.detect_language(hindi_translit)
+        self.assertEqual(res2["detected_language"], "hi")
+
+        telugu_translit = "naa chetilo chettu rogam vachindi em cheyali?"
+        res3 = LanguageDetectionService.detect_language(telugu_translit)
+        self.assertEqual(res3["detected_language"], "te")
+
+    # -------------------------------------------------------------------------
+    # 9. Dialect Adaptation Service (Registry, Rules & Prompts)
+    # -------------------------------------------------------------------------
+    def test_dialect_adaptation_registry_and_prompts(self):
+        """Verify DialectAdaptationService registry and contextual instructions."""
+        # Check all 9 languages exist in registry
+        for lang_code in ["kn", "hi", "te", "ta", "ml", "mr", "bn", "pa", "en"]:
+            dialects = DialectAdaptationService.get_supported_dialects_for_language(lang_code)
+            self.assertGreater(len(dialects), 0, f"No dialects found for {lang_code}")
+            # Every language has a standard dialect
+            self.assertTrue(any(d["dialect_code"] == "standard" for d in dialects))
+
+        # Test Kannada dialects: North Karnataka
+        uttara = DialectAdaptationService.get_dialect_config("kn", "uttara_karnataka")
+        self.assertIsNotNone(uttara)
+        self.assertIn("Uttara Karnataka", uttara["name"])
+        instructions = DialectAdaptationService.get_dialect_instructions("kn", "uttara_karnataka")
+        self.assertIn("ಉತ್ತರ ಕರ್ನಾಟಕ", instructions)
+        self.assertIn("ಏನ್ರಿ", instructions)
+
+        # Test Hindi: Eastern Hindi
+        eastern_hi = DialectAdaptationService.get_dialect_config("hi", "eastern_hindi")
+        self.assertIsNotNone(eastern_hi)
+        self.assertIn("Eastern Hindi", eastern_hi["name"])
+        hi_instructions = DialectAdaptationService.get_dialect_instructions("hi", "eastern_hindi")
+        self.assertIn("भैया", hi_instructions)
+
+        # Test fallback to standard on invalid dialect code
+        fallback = DialectAdaptationService.get_dialect_config("kn", "invalid_dialect")
+        self.assertEqual(fallback["dialect_code"], "standard")
+
+        # Test grouped dialects
+        grouped = DialectAdaptationService.get_grouped_dialects()
+        self.assertEqual(len(grouped), 9)
+        self.assertIn("kn", grouped)
+        self.assertIn("hi", grouped)
+
+    # -------------------------------------------------------------------------
+    # 10. Voice Speech Services (STT, TTS, & Cleaner)
+    # -------------------------------------------------------------------------
+    def test_speech_to_text_and_tts_services(self):
+        """Verify TTS text cleaner and graceful fallback when API keys are unconfigured."""
+        # Markdown cleaner
+        markdown_text = (
+            "## ಕೀಟ ನಿಯಂತ್ರಣ ಸಲಹೆ\n\n"
+            "ನಿಮ್ಮ **ಕಬ್ಬಿನ ಬೆಳೆಗೆ** ಕೆಳಗಿನ ಕ್ರಮಗಳನ್ನು ಅನುಸರಿಸಿ:\n"
+            "1. ಬೇವಿನ ಎಣ್ಣೆ 5ml ಪ್ರತಿ ಲೀಟರ್ ನೀರಿಗೆ ಬೆರೆಸಿ ಸಿಂಪಡಿಸಿ.\n"
+            "- [ಹೆಚ್ಚಿನ ಮಾಹಿತಿ](https://example.com/pest)\n"
+            "> ಮುನ್ನೆಚ್ಚರಿಕೆ: ಬಿಸಿಲಿನಲ್ಲಿ ಸಿಂಪಡಿಸಬೇಡಿ."
+        )
+        cleaned = clean_text_for_speech(markdown_text)
+        self.assertNotIn("##", cleaned)
+        self.assertNotIn("**", cleaned)
+        self.assertNotIn("[ಹೆಚ್ಚಿನ ಮಾಹಿತಿ]", cleaned)
+        self.assertNotIn("https://", cleaned)
+        self.assertIn("ಕೀಟ ನಿಯಂತ್ರಣ ಸಲಹೆ", cleaned)
+        self.assertIn("ಬೇವಿನ ಎಣ್ಣೆ 5ml", cleaned)
+
+        # TTS Service with missing key -> returns graceful fallback
+        with patch.dict(self.app.config, {"SARVAM_API_KEY": ""}):
+            tts_result, tts_status = TextToSpeechService.synthesize_speech(
+                text="ನಮಸ್ಕಾರ ರೈತ ಬಾಂಧವರೇ",
+                language_code="kn",
+            )
+            self.assertEqual(tts_status, 200)
+            self.assertFalse(tts_result["success"])
+            self.assertTrue(tts_result.get("fallback_to_browser"))
+
+            # STT Service with missing key -> returns graceful fallback
+            stt_result, stt_status = SpeechToTextService.transcribe_audio(
+                audio_bytes=b"fake-audio-bytes-wav",
+                language_code="kn",
+            )
+            self.assertEqual(stt_status, 200)
+            self.assertFalse(stt_result["success"])
+            self.assertTrue(stt_result.get("fallback_to_browser"))
+
+    # -------------------------------------------------------------------------
+    # 11. Dialects & Farmer Preferences Endpoints (GET & PUT)
+    # -------------------------------------------------------------------------
+    def test_dialect_endpoints_and_farmer_preferences(self):
+        """Verify /api/ai/dialects and farmer preferences GET/PUT endpoints."""
+        for k, v in self.farmer1_cookies.items():
+            self.client.set_cookie(k, v)
+
+        # 1. GET /api/ai/dialects
+        dialects_res = self.client.get("/api/ai/dialects")
+        self.assertEqual(dialects_res.status_code, 200)
+        dialects_data = dialects_res.get_json()
+        self.assertTrue(dialects_data["success"])
+        self.assertIn("dialects", dialects_data)
+        self.assertIn("kn", dialects_data["dialects"])
+        self.assertIn("hi", dialects_data["dialects"])
+
+        # 2. GET /api/ai/preferences
+        pref_res = self.client.get("/api/ai/preferences")
+        self.assertEqual(pref_res.status_code, 200)
+        pref_data = pref_res.get_json()
+        self.assertTrue(pref_data["success"])
+        self.assertEqual(pref_data["preferences"]["preferred_language"], "Kannada")
+
+        # 3. PUT /api/ai/preferences
+        update_res = self.client.put(
+            "/api/ai/preferences",
+            json={
+                "preferred_language": "Kannada",
+                "preferred_dialect": "uttara_karnataka",
+                "voice_enabled": True,
+                "auto_play_voice": True,
+            },
+            headers=self.farmer1_headers,
+        )
+        self.assertEqual(update_res.status_code, 200)
+        updated_data = update_res.get_json()
+        self.assertTrue(updated_data["success"])
+        self.assertEqual(updated_data["preferences"]["preferred_dialect"], "uttara_karnataka")
+        self.assertEqual(updated_data["preferences"]["auto_play_voice"], True)
+
+        # Verify persisted in MySQL DB
+        prof = FarmerProfile.query.filter_by(user_id=self.farmer1.farmer_id).first()
+        self.assertEqual(prof.preferred_dialect, "uttara_karnataka")
+        self.assertEqual(prof.auto_play_voice, True)
+
+    # -------------------------------------------------------------------------
+    # 12. Audio STT & TTS API Endpoints
+    # -------------------------------------------------------------------------
+    def test_audio_stt_and_tts_api_routes(self):
+        """Verify /api/ai/stt and /api/ai/tts error handling and fallback behavior."""
+        for k, v in self.farmer1_cookies.items():
+            self.client.set_cookie(k, v)
+
+        # TTS: missing text returns 400
+        tts_bad = self.client.post(
+            "/api/ai/tts",
+            json={"text": ""},
+            headers=self.farmer1_headers,
+        )
+        self.assertEqual(tts_bad.status_code, 400)
+
+        # TTS: with text and unconfigured Sarvam key returns 200 with fallback flag
+        tts_ok = self.client.post(
+            "/api/ai/tts",
+            json={"text": "ನಮಸ್ಕಾರ ರೈತ ಬಾಂಧವರೇ", "language": "kn"},
+            headers=self.farmer1_headers,
+        )
+        self.assertEqual(tts_ok.status_code, 200)
+        tts_data = tts_ok.get_json()
+        self.assertTrue(tts_data.get("fallback_to_browser", False))
+
+        # STT: missing audio file returns 400
+        stt_bad = self.client.post(
+            "/api/ai/stt",
+            headers=self.farmer1_headers,
+        )
+        self.assertEqual(stt_bad.status_code, 400)
+
+        # STT: valid audio file with unconfigured Sarvam key returns 200 with fallback flag
+        audio_stream = io.BytesIO(b"RIFFdummywavdata")
+        stt_ok = self.client.post(
+            "/api/ai/stt",
+            data={"audio": (audio_stream, "speech.wav"), "language": "kn"},
+            content_type="multipart/form-data",
+            headers=self.farmer1_headers,
+        )
+        self.assertEqual(stt_ok.status_code, 200)
+        stt_data = stt_ok.get_json()
+        self.assertTrue(stt_data.get("fallback_to_browser", False))
+
+    # -------------------------------------------------------------------------
+    # 13. End-to-End Chat with Dialect & Voice Mode
+    # -------------------------------------------------------------------------
+    def test_chat_with_voice_mode_and_dialect(self):
+        """Verify chat generates dialect response, saves dialect in DB, and includes voice metadata."""
+        with patch.dict(self.app.config, {"AI_API_KEY": "test-key-mock"}):
+            for k, v in self.farmer1_cookies.items():
+                self.client.set_cookie(k, v)
+
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "ನಮಸ್ಕಾರ್ರಿ ಪಾಟೀಲರೇ! ಕಬ್ಬಿನ ಬೆಳೆಗೆ ಬೇವಿನ ಹಿಂಡಿ ಹಾಕ್ರಿ, ಮಣ್ಣಿಗೆ ಭಾಳ ಚೊಲೋ ಆಗತೈತಿ."
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+            with patch("requests.post", return_value=mock_resp):
+                res = self.client.post(
+                    "/api/ai/chat",
+                    json={
+                        "message": "ನಮ್ಮ ಕಬ್ಬಿನ ಬೆಳೆಗೆ ಏನು ಗೊಬ್ಬರ ಹಾಕಬೇಕು ಹೇಳ್ರಿ?",
+                        "language": "kn",
+                        "dialect": "uttara_karnataka",
+                        "voice_mode": True,
+                    },
+                    headers=self.farmer1_headers,
+                )
+                self.assertEqual(res.status_code, 200)
+                data = res.get_json()
+                self.assertTrue(data["success"])
+                self.assertEqual(data["language"], "kn")
+                self.assertEqual(data["dialect"], "north_karnataka")
+                self.assertIn("audio", data)
+
+                # Verify conversation record stored dialect
+                conv_id = data["conversation_id"]
+                conv = db.session.get(AIConversation, conv_id)
+                self.assertIsNotNone(conv)
+                self.assertEqual(conv.dialect, "north_karnataka")
 
 
 if __name__ == "__main__":

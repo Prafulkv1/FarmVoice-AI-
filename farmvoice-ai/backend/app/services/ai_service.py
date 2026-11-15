@@ -55,6 +55,7 @@ class AIService:
         question,
         context_str="",
         language_code="en",
+        dialect_code="standard",
         conversation_history=None,
     ):
         """Generate an AI response using the configured provider."""
@@ -70,12 +71,13 @@ class AIService:
                 "configured": False,
             }, 503
 
-        system_prompt = AIPromptBuilder.build_system_prompt(language_code)
+        system_prompt = AIPromptBuilder.build_system_prompt(language_code, dialect_code)
 
         user_prompt = AIPromptBuilder.build_user_prompt(
             context_str,
             question,
             language_code,
+            dialect_code,
         )
 
         history = conversation_history or []

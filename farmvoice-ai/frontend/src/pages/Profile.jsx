@@ -45,6 +45,9 @@ const defaultFormState = {
   irrigation_type: "",
   farming_experience: "",
   preferred_language: "",
+  preferred_dialect: "standard",
+  voice_enabled: true,
+  auto_play_voice: false,
   notifications_enabled: null,
   main_crops: [],
 };
@@ -127,6 +130,9 @@ export default function Profile() {
               ? String(p.farming_experience)
               : "",
           preferred_language: p.preferred_language || "",
+          preferred_dialect: p.preferred_dialect || "standard",
+          voice_enabled: p.voice_enabled !== false,
+          auto_play_voice: !!p.auto_play_voice,
           notifications_enabled:
             typeof p.notifications_enabled === "boolean"
               ? p.notifications_enabled
@@ -160,6 +166,9 @@ export default function Profile() {
           irrigation_type: "",
           farming_experience: "",
           preferred_language: "",
+          preferred_dialect: "standard",
+          voice_enabled: true,
+          auto_play_voice: false,
           notifications_enabled: null,
           main_crops: [],
         };

@@ -22,7 +22,10 @@ export default function Contact() {
     <div className="home-page">
       <Navbar />
 
-      <div className="section-container" style={{ padding: "4rem 1.5rem 5rem" }}>
+      <div
+        className="section-container"
+        style={{ padding: "4rem 1.5rem 5rem" }}
+      >
         <div className="section-header-center">
           <div className="section-tag">
             <Mail size={14} />
@@ -30,7 +33,8 @@ export default function Contact() {
           </div>
           <h1 className="section-heading">Contact FarmVoice AI</h1>
           <p className="section-subheading">
-            Get in touch with the FarmVoice AI team for assistance, feedback, or inquiries.
+            Get in touch with the FarmVoice AI team for assistance, feedback, or
+            inquiries.
           </p>
         </div>
 
@@ -38,7 +42,8 @@ export default function Contact() {
           <div className="contact-info-side">
             <h2 className="contact-heading">Reach Out to Our Team</h2>
             <p className="contact-desc">
-              Have questions, feedback, or need technical support? Contact the FarmVoice AI team and we&rsquo;ll respond as soon as possible.
+              Have questions, feedback, or need technical support? Contact the
+              FarmVoice AI team and we&rsquo;ll respond as soon as possible.
             </p>
 
             <div className="contact-details-list">
@@ -73,7 +78,8 @@ export default function Contact() {
                 <div>
                   <div className="contact-lbl">Dashboard Support</div>
                   <span className="contact-val">
-                    For feature requests or bug reports, please log in and use the dashboard notifications section.
+                    For feature requests or bug reports, please log in and use
+                    the dashboard notifications section.
                   </span>
                 </div>
               </div>
@@ -86,7 +92,8 @@ export default function Contact() {
                 <CheckCircle2 size={48} className="contact-success-icon" />
                 <h3>Thank You!</h3>
                 <p>
-                  Your message has been received. Our agricultural support team will review your inquiry and follow up shortly.
+                  Your message has been received. Our agricultural support team
+                  will review your inquiry and follow up shortly.
                 </p>
               </div>
             ) : (
@@ -105,13 +112,17 @@ export default function Contact() {
                 </div>
 
                 <div className="form-field-group">
-                  <label className="contact-label">Email or Mobile Number</label>
+                  <label className="contact-label">
+                    Email or Mobile Number
+                  </label>
                   <input
                     type="text"
                     className="contact-input"
                     placeholder="e.g. farmer@gmail.com or 9876543210"
                     value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -123,7 +134,9 @@ export default function Contact() {
                     rows={4}
                     placeholder="How can our team help your farm?"
                     value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, message: e.target.value })
+                    }
                   />
                 </div>
 

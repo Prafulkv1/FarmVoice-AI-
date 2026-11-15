@@ -265,6 +265,12 @@ class ProfileService:
         profile.irrigation_type = data["irrigation_type"]
         profile.farming_experience = data["farming_experience"]
         profile.preferred_language = data["preferred_language"]
+        if "preferred_dialect" in data and data["preferred_dialect"]:
+            profile.preferred_dialect = data["preferred_dialect"]
+        if "voice_enabled" in data and data["voice_enabled"] is not None:
+            profile.voice_enabled = bool(data["voice_enabled"])
+        if "auto_play_voice" in data and data["auto_play_voice"] is not None:
+            profile.auto_play_voice = bool(data["auto_play_voice"])
         profile.notifications_enabled = data["notifications_enabled"]
 
         # Keep farmer registration model in sync with latest personal details

@@ -1,18 +1,25 @@
 """FarmVoice AI - AI Assistant Routes (Flask Blueprint).
 
-Exposes endpoints for context-aware multilingual chat, conversation
-management, language options, verified schemes, and service health.
+Exposes endpoints for context-aware multilingual chat, regional dialect adaptation,
+speech-to-text (STT), text-to-speech (TTS), user voice preferences,
+conversation management, language options, and service health.
 """
 
+import base64
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app import db
 from app.models.ai_conversation import AIConversation
 from app.models.farmer_profile import FarmerProfile
 from app.services.ai_service import AIService
 from app.services.conversation_service import ConversationService
 from app.services.farmer_context_service import FarmerContextService
 from app.services.language_service import LanguageService
+from app.services.language_detection_service import LanguageDetectionService
+from app.services.dialect_adaptation_service import DialectAdaptationService
+from app.services.speech_to_text_service import SpeechToTextService
+from app.services.text_to_speech_service import TextToSpeechService
 from app.services.scheme_service import SchemeService
 
 ai_bp = Blueprint("ai", __name__)
@@ -21,7 +28,7 @@ ai_bp = Blueprint("ai", __name__)
 @ai_bp.route("/chat", methods=["POST"])
 @jwt_required()
 def chat():
-    """Send a farming question and receive a context-grounded AI response."""
+    """Send a farming question and receive a context-grounded, dialect-adapted AI response."""
     try:
         user_id = int(get_jwt_identity())
     except (TypeError, ValueError):
@@ -36,19 +43,35 @@ def chat():
     if len(message_text) > 2000:
         return jsonify({"success": False, "message": "Question exceeds maximum length of 2000 characters."}), 400
 
-    # Determine language preference
-    lang_param = data.get("language")
-    if not lang_param:
-        # Check farmer profile preference
-        prof = FarmerProfile.query.filter_by(user_id=user_id).first()
-        if prof and prof.preferred_language:
-            lang_param = prof.preferred_language
-        else:
-            lang_param = "en"
+    prof = FarmerProfile.query.filter_by(user_id=user_id).first()
 
-    language_code = LanguageService.normalize_language_code(lang_param)
+    # 1. Language Resolution (Explicit override -> Auto Detection -> Profile Preference -> 'en')
+    requested_lang = data.get("language")
+    detected_info = None
 
-    # Resolve or create conversation session
+    if requested_lang and requested_lang.lower() != "auto":
+        language_code = LanguageService.normalize_language_code(requested_lang)
+    else:
+        # Detect language automatically from farmer's question text
+        default_lang = prof.preferred_language if prof and prof.preferred_language else "en"
+        detected_info = LanguageDetectionService.detect_language(message_text, default_lang=default_lang)
+        language_code = detected_info["detected_language"]
+
+    # 2. Dialect Resolution (Request -> Profile preference -> Conversation -> 'standard')
+    requested_dialect = data.get("dialect")
+    if not requested_dialect and prof and prof.preferred_dialect:
+        requested_dialect = prof.preferred_dialect
+
+    dialect_code = DialectAdaptationService.normalize_dialect(language_code, requested_dialect)
+
+    # 3. Voice Mode Check
+    voice_mode = data.get("voice_mode")
+    if voice_mode is None and prof:
+        voice_mode = bool(prof.voice_enabled)
+    else:
+        voice_mode = bool(voice_mode)
+
+    # 4. Resolve or Create Conversation Session
     conversation_id = data.get("conversation_id")
     conv = None
 
@@ -59,32 +82,38 @@ def chat():
                 "success": False,
                 "message": "Conversation not found or access denied.",
             }), 404
+        # Update dialect if explicitly changed
+        if conv.dialect != dialect_code:
+            conv.dialect = dialect_code
+            db.session.commit()
     else:
         # Auto-create new conversation
         conv_dict, status = ConversationService.create_conversation(
             user_id=user_id,
             title="New Farming Advisory",
             language=language_code,
+            dialect=dialect_code,
         )
         if status != 201:
             return jsonify(conv_dict), status
         conversation_id = conv_dict["id"]
 
-    # Gather authenticated farmer context
+    # 5. Gather Authenticated Farmer Context
     context = FarmerContextService.get_farmer_context(user_id, question_text=message_text)
     context_str = FarmerContextService.format_context_for_prompt(context)
 
-    # Gather prior message history (up to last 6 turns)
+    # 6. Gather Prior Message History (up to last 6 turns)
     history = []
     if conv and conv.messages:
         for m in conv.messages[-6:]:
             history.append({"role": m.role, "message": m.message})
 
-    # Call AI Provider
+    # 7. Call AI Provider with Dialect Directives
     ai_result, ai_status = AIService.generate_response(
         question=message_text,
         context_str=context_str,
         language_code=language_code,
+        dialect_code=dialect_code,
         conversation_history=history,
     )
 
@@ -93,7 +122,7 @@ def chat():
 
     ai_text = ai_result["text"]
 
-    # Persist both user and assistant messages
+    # 8. Persist User and Assistant Messages
     user_msg = ConversationService.add_message(
         conversation_id=conversation_id,
         role="user",
@@ -108,13 +137,31 @@ def chat():
         language=language_code,
     )
 
-    # Return structured response
+    # 9. Optional Audio Synthesis (Sarvam TTS if voice_mode enabled)
+    audio_data = None
+    if voice_mode:
+        tts_res, tts_status = TextToSpeechService.synthesize_speech(
+            text=ai_text,
+            language_code=language_code,
+        )
+        if tts_status == 200 and tts_res.get("success"):
+            audio_data = {
+                "provider": tts_res.get("provider", "sarvam"),
+                "audio_base64": tts_res.get("audio_base64"),
+                "mime_type": tts_res.get("mime_type", "audio/wav"),
+                "speaker": tts_res.get("speaker"),
+            }
+
+    # 10. Return Structured Response
     return jsonify({
         "success": True,
         "conversation_id": conversation_id,
         "role": "assistant",
         "message": ai_text,
         "language": language_code,
+        "dialect": dialect_code,
+        "detected_language": detected_info,
+        "audio": audio_data,
         "user_message_id": user_msg["id"],
         "assistant_message_id": assistant_msg["id"],
         "created_at": assistant_msg["created_at"],
@@ -129,6 +176,154 @@ def chat():
             "schemes_matched": len(context.get("relevant_schemes", [])),
         },
     }), 200
+
+
+@ai_bp.route("/stt", methods=["POST"])
+@jwt_required()
+def speech_to_text():
+    """Transcribe farmer spoken audio via Sarvam AI or return browser fallback."""
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid user identity."}), 401
+
+    audio_bytes = None
+    filename = "recording.wav"
+    content_type = "audio/wav"
+    language_code = "kn"
+
+    # Check for multipart audio file upload
+    if "file" in request.files or "audio" in request.files:
+        upload = request.files.get("file") or request.files.get("audio")
+        audio_bytes = upload.read()
+        filename = upload.filename or "recording.wav"
+        content_type = upload.content_type or "audio/wav"
+        language_code = request.form.get("language_code", "kn")
+    else:
+        # Check JSON payload with base64
+        data = request.get_json(silent=True) or {}
+        b64 = data.get("audio")
+        if b64:
+            if "," in b64:
+                b64 = b64.split(",", 1)[1]
+            try:
+                audio_bytes = base64.b64decode(b64)
+            except Exception:
+                return jsonify({"success": False, "message": "Invalid base64 audio data."}), 400
+        language_code = data.get("language_code", "kn")
+        content_type = data.get("content_type", "audio/wav")
+
+    if not audio_bytes:
+        return jsonify({"success": False, "message": "No audio data provided."}), 400
+
+    result, status = SpeechToTextService.transcribe_audio(
+        audio_bytes=audio_bytes,
+        filename=filename,
+        language_code=language_code,
+        content_type=content_type,
+    )
+    return jsonify(result), status
+
+
+@ai_bp.route("/tts", methods=["POST"])
+@jwt_required()
+def text_to_speech():
+    """Synthesize text into natural regional speech."""
+    data = request.get_json(silent=True) or {}
+    text = data.get("text", "").strip()
+    language = data.get("language", "kn")
+    speaker = data.get("speaker")
+    pace = data.get("pace", 1.0)
+
+    if not text:
+        return jsonify({"success": False, "message": "Text is required for TTS."}), 400
+
+    result, status = TextToSpeechService.synthesize_speech(
+        text=text,
+        language_code=language,
+        speaker=speaker,
+        pace=pace,
+    )
+    return jsonify(result), status
+
+
+@ai_bp.route("/dialects", methods=["GET"])
+def get_dialects():
+    """Return all supported regional dialects grouped by language."""
+    dialects = DialectAdaptationService.get_all_dialects_grouped()
+    return jsonify({"success": True, "dialects": dialects}), 200
+
+
+@ai_bp.route("/preferences", methods=["GET"])
+@jwt_required()
+def get_preferences():
+    """Retrieve authenticated farmer's language, dialect, and voice preferences."""
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid user identity."}), 401
+
+    prof = FarmerProfile.query.filter_by(user_id=user_id).first()
+    if not prof:
+        return jsonify({
+            "success": True,
+            "preferences": {
+                "preferred_language": "Kannada",
+                "preferred_dialect": "standard",
+                "voice_enabled": True,
+                "auto_play_voice": False,
+            },
+        }), 200
+
+    return jsonify({
+        "success": True,
+        "preferences": {
+            "preferred_language": prof.preferred_language or "English",
+            "preferred_dialect": prof.preferred_dialect or "standard",
+            "voice_enabled": bool(prof.voice_enabled if prof.voice_enabled is not None else True),
+            "auto_play_voice": bool(prof.auto_play_voice),
+        },
+    }), 200
+
+
+@ai_bp.route("/preferences", methods=["PUT"])
+@jwt_required()
+def update_preferences():
+    """Update authenticated farmer's language, dialect, and voice settings."""
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid user identity."}), 401
+
+    data = request.get_json(silent=True) or {}
+    prof = FarmerProfile.query.filter_by(user_id=user_id).first()
+    if not prof:
+        return jsonify({"success": False, "message": "Profile not found."}), 404
+
+    if "preferred_language" in data:
+        prof.preferred_language = str(data["preferred_language"]).strip()
+    if "preferred_dialect" in data:
+        prof.preferred_dialect = str(data["preferred_dialect"]).strip()
+    if "voice_enabled" in data:
+        prof.voice_enabled = bool(data["voice_enabled"])
+    if "auto_play_voice" in data:
+        prof.auto_play_voice = bool(data["auto_play_voice"])
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "message": "AI voice and language preferences updated successfully.",
+            "preferences": {
+                "preferred_language": prof.preferred_language,
+                "preferred_dialect": prof.preferred_dialect,
+                "voice_enabled": prof.voice_enabled,
+                "auto_play_voice": prof.auto_play_voice,
+            },
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Failed to update preferences."}), 500
 
 
 @ai_bp.route("/conversations", methods=["GET"])
@@ -172,8 +367,11 @@ def create_conversation():
     data = request.get_json(silent=True) or {}
     title = data.get("title")
     language = data.get("language", "en")
+    dialect = data.get("dialect", "standard")
 
-    result, status = ConversationService.create_conversation(user_id, title=title, language=language)
+    result, status = ConversationService.create_conversation(
+        user_id, title=title, language=language, dialect=dialect
+    )
     return jsonify(result), status
 
 
@@ -199,8 +397,10 @@ def get_languages():
 
 @ai_bp.route("/health", methods=["GET"])
 def check_health():
-    """Check AI service operational status and configuration."""
+    """Check AI service and voice operational status and configuration."""
     health_data = AIService.check_health()
+    sarvam_configured = bool(request.environ.get("SARVAM_API_KEY") or AIService.get_config().get("api_key"))
+    health_data["sarvam_configured"] = sarvam_configured
     status_code = 200 if health_data["configured"] else 503
     return jsonify({"success": True, "health": health_data}), status_code
 

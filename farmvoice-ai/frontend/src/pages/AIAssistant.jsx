@@ -4,7 +4,8 @@ import aiService from "../services/aiService";
 import { profileService } from "../services/profileService";
 import {
   SpeechRecognitionManager,
-  TextToSpeechManager,
+  AudioStreamRecorder,
+  HybridAudioPlayer,
   LANGUAGE_SPEECH_MAP,
 } from "../utils/voiceUtils";
 import {
@@ -13,6 +14,10 @@ import {
   Mic,
   MicOff,
   Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  RotateCcw,
   Square,
   Copy,
   Check,
@@ -35,6 +40,8 @@ import {
   Layers,
   CheckCircle,
   MessageSquare,
+  Radio,
+  Sliders,
 } from "lucide-react";
 
 import "../styles/dashboard.css";
@@ -52,7 +59,6 @@ const FALLBACK_LANGUAGES = [
   { code: "en", name: "English", native_name: "English", speech_code: "en-IN" },
 ];
 
-// Helper to map profile language string (e.g. "Kannada") to code ("kn")
 const LANGUAGE_CODE_MAP = {
   kannada: "kn",
   hindi: "hi",
@@ -167,7 +173,6 @@ const PROMPT_CARDS = [
 
 /**
  * Lightweight helper to render formatted markdown response text
- * without external heavyweight parser dependencies.
  */
 function MarkdownRenderer({ text }) {
   if (!text) return null;
@@ -175,7 +180,7 @@ function MarkdownRenderer({ text }) {
   const lines = text.split("\n");
   const renderedElements = [];
   let currentList = [];
-  let listType = null; // 'ul' or 'ol'
+  let listType = null;
 
   const flushList = (keyPrefix) => {
     if (currentList.length > 0) {
@@ -219,7 +224,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Heading 2 (##)
     if (trimmed.startsWith("## ")) {
       flushList(`h2-${idx}`);
       renderedElements.push(
@@ -230,7 +234,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Heading 3 (###)
     if (trimmed.startsWith("### ")) {
       flushList(`h3-${idx}`);
       renderedElements.push(
@@ -241,7 +244,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Numbered list item
     const olMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
     if (olMatch) {
       if (listType !== "ol") flushList(`sw-ol-${idx}`);
@@ -250,7 +252,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Bulleted list item
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       if (listType !== "ul") flushList(`sw-ul-${idx}`);
       listType = "ul";
@@ -258,7 +259,6 @@ function MarkdownRenderer({ text }) {
       return;
     }
 
-    // Normal paragraph
     flushList(`p-${idx}`);
     renderedElements.push(
       <p
@@ -276,14 +276,17 @@ function MarkdownRenderer({ text }) {
 export default function AIAssistant() {
   const { user } = useAuth();
 
-  // Languages & Selection
+  // Languages & Dialects Selection
   const [languages, setLanguages] = useState(FALLBACK_LANGUAGES);
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState("kn");
+  const [allDialects, setAllDialects] = useState({});
+  const [dialect, setDialect] = useState("standard");
+  const [voiceMode, setVoiceMode] = useState(true); // Auto-voice response enabled
 
-  // Farmer Profile Context
+  // Farmer Profile & Context
   const [farmerProfile, setFarmerProfile] = useState(null);
 
-  // Conversations & Active Chat State
+  // Conversations & History
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -297,20 +300,34 @@ export default function AIAssistant() {
   const [errorBanner, setErrorBanner] = useState(null);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
 
-  // Voice State (STT & TTS)
+  // Voice Input (STT) State
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  const [speakingMessageId, setSpeakingMessageId] = useState(null);
+  const [audioProcessing, setAudioProcessing] = useState(false);
+
+  // Audio Playback (TTS) State
+  const [activeAudioMsgId, setActiveAudioMsgId] = useState(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioSpeed, setAudioSpeed] = useState(1.0);
 
   const recognitionManagerRef = useRef(null);
-  const ttsManagerRef = useRef(null);
+  const streamRecorderRef = useRef(null);
+  const audioPlayerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
   const farmerDisplayName =
     farmerProfile?.full_name || user?.farm_name || user?.username || "Farmer";
 
-  // 1. Initial Load: Languages, Profile, Conversations, and Voice Managers
+  // Available dialects for currently selected language
+  const currentLanguageDialects = useMemo(() => {
+    return allDialects[language] || [
+      { code: "standard", name: "Standard", native_name: "ಶಿಷ್ಟ / मानक" },
+    ];
+  }, [allDialects, language]);
+
+  // 1. Initial Load: Languages, Dialects, Profile & Preferences, Conversations, Audio Player
   useEffect(() => {
     let isMounted = true;
 
@@ -324,27 +341,96 @@ export default function AIAssistant() {
       })
       .catch(() => {});
 
-    // Load Farmer Profile to preselect preferred regional language
-    profileService
-      .getProfile()
+    // Load supported regional dialects
+    aiService
+      .getDialects()
       .then((res) => {
-        if (!isMounted) return;
-        const prof = res?.data?.profile || res?.data?.data || null;
-        if (prof) {
-          setFarmerProfile(prof);
-          if (prof.preferred_language) {
-            const lower = prof.preferred_language.toLowerCase();
-            const matchedCode = LANGUAGE_CODE_MAP[lower] || "en";
-            setLanguage(matchedCode);
-          }
+        if (isMounted && res?.dialects) {
+          setAllDialects(res.dialects);
         }
       })
       .catch(() => {});
 
-    // Load existing conversations list
+    // Load Farmer Profile & Stored AI Preferences
+    aiService
+      .getPreferences()
+      .then((res) => {
+        if (!isMounted) return;
+        if (res?.preferences) {
+          const pref = res.preferences;
+          if (pref.preferred_language) {
+            const code =
+              LANGUAGE_CODE_MAP[pref.preferred_language.toLowerCase()] ||
+              pref.preferred_language;
+            setLanguage(code);
+          }
+          if (pref.preferred_dialect) {
+            setDialect(pref.preferred_dialect);
+          }
+          if (typeof pref.voice_enabled === "boolean") {
+            setVoiceMode(pref.voice_enabled);
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback to profileService
+        profileService.getProfile().then((pRes) => {
+          if (!isMounted) return;
+          const prof = pRes?.data?.profile;
+          if (prof) {
+            setFarmerProfile(prof);
+            if (prof.preferred_language) {
+              const code =
+                LANGUAGE_CODE_MAP[prof.preferred_language.toLowerCase()] || "en";
+              setLanguage(code);
+            }
+          }
+        });
+      });
+
+    // Load Profile details for context display
+    profileService
+      .getProfile()
+      .then((pRes) => {
+        if (isMounted && pRes?.data?.profile) {
+          setFarmerProfile(pRes.data.profile);
+        }
+      })
+      .catch(() => {});
+
+    // Load conversation list
     loadConversationsList();
 
-    // Initialize Speech Recognition Manager
+    // Initialize Hybrid Audio Player
+    const player = new HybridAudioPlayer({
+      onStart: (msgId) => {
+        setActiveAudioMsgId(msgId);
+        setIsAudioPlaying(true);
+      },
+      onEnd: () => {
+        setActiveAudioMsgId(null);
+        setIsAudioPlaying(false);
+        setAudioProgress(0);
+      },
+      onPause: () => {
+        setIsAudioPlaying(false);
+      },
+      onResume: () => {
+        setIsAudioPlaying(true);
+      },
+      onProgress: (current, duration) => {
+        if (duration > 0) {
+          setAudioProgress((current / duration) * 100);
+        }
+      },
+      onError: (err) => {
+        console.warn("Audio playback notice:", err);
+        setIsAudioPlaying(false);
+      },
+    });
+    audioPlayerRef.current = player;
+
+    // Initialize Speech Recognition Manager (instant live transcription preview)
     const stt = new SpeechRecognitionManager(
       (transcript, isFinal) => {
         setQuery(transcript);
@@ -365,25 +451,51 @@ export default function AIAssistant() {
       }
     );
     recognitionManagerRef.current = stt;
-    setVoiceSupported(stt.isSupported);
+    setVoiceSupported(stt.isSupported || Boolean(navigator.mediaDevices?.getUserMedia));
 
-    // Initialize Text to Speech Manager
-    const tts = new TextToSpeechManager(
-      (msgId) => setSpeakingMessageId(msgId),
-      () => setSpeakingMessageId(null),
-      (err) => {
-        console.warn("TTS Notice:", err);
-        setSpeakingMessageId(null);
+    // Initialize MediaRecorder for backend Sarvam STT
+    const streamRecorder = new AudioStreamRecorder(
+      null,
+      async (audioBlob) => {
+        // Send recorded audio to backend Sarvam STT endpoint
+        if (audioBlob && audioBlob.size > 1000) {
+          setAudioProcessing(true);
+          try {
+            const sttRes = await aiService.speechToText(audioBlob, language);
+            if (sttRes?.success && sttRes.transcript) {
+              setQuery(sttRes.transcript);
+            }
+          } catch (err) {
+            console.warn("Backend STT fallback to browser recognition:", err);
+          } finally {
+            setAudioProcessing(false);
+          }
+        }
+      },
+      (errMessage) => {
+        setErrorBanner(errMessage);
+        setIsListening(false);
       }
     );
-    ttsManagerRef.current = tts;
+    streamRecorderRef.current = streamRecorder;
 
     return () => {
       isMounted = false;
       stt.stop();
-      tts.stop();
+      streamRecorder.stop();
+      player.stop();
     };
   }, []);
+
+  // Update dialect selection when language changes if current dialect is incompatible
+  useEffect(() => {
+    if (allDialects[language]) {
+      const validCodes = allDialects[language].map((d) => d.code);
+      if (!validCodes.includes(dialect)) {
+        setDialect(validCodes[0] || "standard");
+      }
+    }
+  }, [language, allDialects, dialect]);
 
   // Auto-scroll chat to bottom when messages update
   useEffect(() => {
@@ -452,9 +564,9 @@ export default function AIAssistant() {
   const handleSelectConversation = async (convId) => {
     if (convId === activeConversationId) return;
 
-    // Stop ongoing audio
-    ttsManagerRef.current?.stop();
-    setSpeakingMessageId(null);
+    audioPlayerRef.current?.stop();
+    setActiveAudioMsgId(null);
+    setIsAudioPlaying(false);
     setErrorBanner(null);
 
     try {
@@ -465,6 +577,9 @@ export default function AIAssistant() {
         if (res.conversation.language) {
           setLanguage(res.conversation.language);
         }
+        if (res.conversation.dialect) {
+          setDialect(res.conversation.dialect);
+        }
         setMobileSidebarOpen(false);
       }
     } catch (err) {
@@ -474,8 +589,9 @@ export default function AIAssistant() {
 
   // Start New Chat
   const handleStartNewChat = () => {
-    ttsManagerRef.current?.stop();
-    setSpeakingMessageId(null);
+    audioPlayerRef.current?.stop();
+    setActiveAudioMsgId(null);
+    setIsAudioPlaying(false);
     setActiveConversationId(null);
     setMessages([]);
     setQuery("");
@@ -497,14 +613,35 @@ export default function AIAssistant() {
     }
   };
 
-  // Send Question
+  // Language & Dialect Change with Preference Persistence
+  const handleLanguageChange = (newLang) => {
+    setLanguage(newLang);
+    aiService.updatePreferences({ preferred_language: newLang }).catch(() => {});
+  };
+
+  const handleDialectChange = (newDialect) => {
+    setDialect(newDialect);
+    aiService.updatePreferences({ preferred_dialect: newDialect }).catch(() => {});
+  };
+
+  const handleToggleVoiceMode = () => {
+    const nextVal = !voiceMode;
+    setVoiceMode(nextVal);
+    if (!nextVal) {
+      audioPlayerRef.current?.stop();
+      setActiveAudioMsgId(null);
+    }
+    aiService.updatePreferences({ voice_enabled: nextVal }).catch(() => {});
+  };
+
+  // Send Question with Context & Dialect
   const handleSendMessage = async (textToSend = null) => {
     const text = (textToSend || query).trim();
     if (!text || sending) return;
 
     setErrorBanner(null);
-    ttsManagerRef.current?.stop();
-    setSpeakingMessageId(null);
+    audioPlayerRef.current?.stop();
+    setActiveAudioMsgId(null);
 
     // Optimistic user message
     const tempUserMsg = {
@@ -522,7 +659,9 @@ export default function AIAssistant() {
       const response = await aiService.sendMessage(
         text,
         activeConversationId,
-        language
+        language,
+        dialect,
+        voiceMode
       );
 
       if (response?.success) {
@@ -531,13 +670,24 @@ export default function AIAssistant() {
           role: "assistant",
           message: response.message,
           language: response.language || language,
+          dialect: response.dialect || dialect,
+          audio: response.audio || null,
           created_at: response.created_at || new Date().toISOString(),
           context_summary: response.context_summary,
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
 
-        // If this was a new conversation, record ID and refresh list
+        // Auto-play voice if Voice Mode is active
+        if (voiceMode) {
+          audioPlayerRef.current?.play(
+            assistantMsg.id,
+            assistantMsg.message,
+            assistantMsg.language,
+            assistantMsg.audio
+          );
+        }
+
         if (!activeConversationId && response.conversation_id) {
           setActiveConversationId(response.conversation_id);
         }
@@ -549,12 +699,12 @@ export default function AIAssistant() {
       if (errData?.error_type === "MISSING_API_KEY") {
         setErrorBanner(
           errData.message ||
-            "AI Assistant requires an API key in backend/.env (AI_API_KEY). Please configure it to enable regional AI assistance."
+            "AI Assistant requires an API key in backend/.env (AI_API_KEY)."
         );
       } else {
         setErrorBanner(
           errData?.message ||
-            "Unable to generate AI agricultural guidance right now. Please check backend connection and retry."
+            "Unable to generate AI agricultural guidance right now. Please retry."
         );
       }
     } finally {
@@ -562,44 +712,57 @@ export default function AIAssistant() {
     }
   };
 
-  // Voice Toggle (Speech-to-Text)
-  const handleToggleVoice = () => {
-    if (!voiceSupported) {
-      setErrorBanner(
-        "Voice input is not supported in this browser. Please use Chrome or Edge."
-      );
-      return;
-    }
-
+  // Voice Recording Toggle (Microphone Input)
+  const handleToggleVoice = async () => {
     const stt = recognitionManagerRef.current;
-    if (!stt) return;
+    const recorder = streamRecorderRef.current;
 
     if (isListening) {
-      stt.stop();
+      stt?.stop();
+      recorder?.stop();
       setIsListening(false);
     } else {
       setErrorBanner(null);
-      const started = stt.start(language);
-      if (started) {
+      // Start both audio stream recorder and live browser preview
+      const recorderStarted = await recorder?.start();
+      const sttStarted = stt?.start(language);
+      if (recorderStarted || sttStarted) {
         setIsListening(true);
       }
     }
   };
 
-  // Text-to-Speech Play / Stop
-  const handleToggleSpeak = (msgId, text) => {
-    const tts = ttsManagerRef.current;
-    if (!tts) return;
+  // Audio Playback Controls
+  const handlePlayAudio = (msg) => {
+    const player = audioPlayerRef.current;
+    if (!player) return;
 
-    if (speakingMessageId === msgId) {
-      tts.stop();
-      setSpeakingMessageId(null);
+    if (activeAudioMsgId === msg.id && isAudioPlaying) {
+      player.pause();
+    } else if (activeAudioMsgId === msg.id && !isAudioPlaying) {
+      player.resume();
     } else {
-      tts.speak(text, language, msgId);
+      player.play(msg.id, msg.message, msg.language || language, msg.audio);
     }
   };
 
-  // Copy Message to Clipboard
+  const handleReplayAudio = (msg) => {
+    audioPlayerRef.current?.play(
+      msg.id,
+      msg.message,
+      msg.language || language,
+      msg.audio
+    );
+  };
+
+  const handleCycleSpeed = () => {
+    const speeds = [1.0, 1.2, 0.8];
+    const nextIdx = (speeds.indexOf(audioSpeed) + 1) % speeds.length;
+    const nextSpeed = speeds[nextIdx];
+    setAudioSpeed(nextSpeed);
+    audioPlayerRef.current?.setPlaybackRate(nextSpeed);
+  };
+
   const handleCopyMessage = async (msgId, text) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -610,9 +773,12 @@ export default function AIAssistant() {
     }
   };
 
-  // Active language info
   const activeLanguageInfo =
     languages.find((l) => l.code === language) || languages[0];
+
+  const activeDialectInfo =
+    currentLanguageDialects.find((d) => d.code === dialect) ||
+    currentLanguageDialects[0];
 
   return (
     <div className="page ai-page-root">
@@ -684,7 +850,7 @@ export default function AIAssistant() {
                 />
                 <p>No previous conversations.</p>
                 <p style={{ fontSize: "0.74rem", opacity: 0.7 }}>
-                  Ask a question to begin.
+                  Speak or ask a question to begin.
                 </p>
               </div>
             ) : (
@@ -803,7 +969,7 @@ export default function AIAssistant() {
 
         {/* 2. Main Chat Area */}
         <section className="ai-chat-main">
-          {/* Top Bar */}
+          {/* Top Bar with Language, Dialect, and Voice Mode */}
           <div className="ai-topbar">
             <div className="ai-topbar-left">
               {sidebarCollapsed && (
@@ -834,13 +1000,13 @@ export default function AIAssistant() {
             </div>
 
             <div className="ai-topbar-right">
-              {/* Language Selector Dropdown */}
+              {/* Language Selector */}
               <div className="ai-lang-dropdown-wrapper">
-                <span className="ai-lang-label-tag">Language:</span>
                 <select
                   value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
                   className="ai-lang-dropdown"
+                  title="Select regional language"
                 >
                   {languages.map((l) => (
                     <option key={l.code} value={l.code}>
@@ -849,6 +1015,37 @@ export default function AIAssistant() {
                   ))}
                 </select>
               </div>
+
+              {/* Regional Dialect Selector */}
+              <div className="ai-dialect-dropdown-wrapper">
+                <select
+                  value={dialect}
+                  onChange={(e) => handleDialectChange(e.target.value)}
+                  className="ai-dialect-dropdown"
+                  title="Select regional dialect style"
+                >
+                  {currentLanguageDialects.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.native_name || d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Voice Mode Toggle Button */}
+              <button
+                type="button"
+                className={`ai-voice-mode-toggle ${voiceMode ? "active" : ""}`}
+                onClick={handleToggleVoiceMode}
+                title={
+                  voiceMode
+                    ? "Voice Mode ON (AI answers will speak aloud)"
+                    : "Voice Mode OFF (Silent text mode)"
+                }
+              >
+                {voiceMode ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                <span>Voice {voiceMode ? "ON" : "OFF"}</span>
+              </button>
             </div>
           </div>
 
@@ -873,7 +1070,7 @@ export default function AIAssistant() {
               </div>
             )}
 
-            {/* Welcome Screen (Rendered when no messages in active conversation) */}
+            {/* Welcome Screen */}
             {messages.length === 0 && (
               <div className="ai-welcome-screen">
                 <div className="ai-welcome-avatar-wrap">
@@ -888,11 +1085,10 @@ export default function AIAssistant() {
                 <div className="ai-welcome-greeting">
                   Namaste, {farmerDisplayName}!
                 </div>
-                <h1 className="ai-welcome-title">Your Smart Farming Assistant</h1>
+                <h1 className="ai-welcome-title">Your Smart Farming Voice Assistant</h1>
                 <p className="ai-welcome-desc">
-                  Ask anything about farming. Get intelligent guidance based on
-                  your crops, location, weather, and farming history in your
-                  regional language.
+                  Speak or type in your regional dialect ({activeLanguageInfo.native_name} - {activeDialectInfo.native_name || activeDialectInfo.name}).
+                  Get personalized agronomic guidance grounded in your farm profile, weather, and soil.
                 </p>
 
                 {/* Connected Farmer Profile Context Chips */}
@@ -958,7 +1154,7 @@ export default function AIAssistant() {
             {/* Conversation Messages */}
             {messages.map((msg, idx) => {
               const isUser = msg.role === "user";
-              const isSpeaking = speakingMessageId === msg.id;
+              const isMsgPlaying = activeAudioMsgId === msg.id && isAudioPlaying;
 
               return (
                 <div
@@ -985,12 +1181,21 @@ export default function AIAssistant() {
                         isUser ? "user-bubble" : "assistant-bubble"
                       }`}
                     >
-                      {/* Context indicator tag for AI responses */}
-                      {!isUser && msg.context_summary?.soil_type && (
-                        <div className="ai-msg-context-tag">
-                          <CheckCircle size={12} />
-                          Grounded on your {msg.context_summary.soil_type} &amp;
-                          weather
+                      {/* Dialect and Context Badges for AI Responses */}
+                      {!isUser && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
+                          {msg.dialect && msg.dialect !== "standard" && (
+                            <div className="ai-msg-dialect-badge">
+                              <Radio size={12} />
+                              {allDialects[msg.language || language]?.find((d) => d.code === msg.dialect)?.name || msg.dialect}
+                            </div>
+                          )}
+                          {msg.context_summary?.soil_type && (
+                            <div className="ai-msg-context-tag">
+                              <CheckCircle size={12} />
+                              Grounded on {msg.context_summary.soil_type} &amp; Weather
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1002,9 +1207,62 @@ export default function AIAssistant() {
                       ) : (
                         <MarkdownRenderer text={msg.message} />
                       )}
+
+                      {/* Integrated Audio Player Bar for AI Responses */}
+                      {!isUser && (
+                        <div className="ai-audio-player-card">
+                          <button
+                            type="button"
+                            className="ai-audio-play-btn"
+                            onClick={() => handlePlayAudio(msg)}
+                            title={isMsgPlaying ? "Pause Audio" : "Play Spoken Voice"}
+                          >
+                            {isMsgPlaying ? <Pause size={14} /> : <Play size={14} />}
+                          </button>
+
+                          <button
+                            type="button"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "inherit",
+                              display: "flex",
+                              padding: "4px",
+                            }}
+                            onClick={() => handleReplayAudio(msg)}
+                            title="Replay from start"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+
+                          <div className="ai-audio-progress-bar">
+                            <div
+                              className="ai-audio-progress-fill"
+                              style={{
+                                width: activeAudioMsgId === msg.id ? `${audioProgress}%` : "0%",
+                              }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            className="ai-audio-speed-btn"
+                            onClick={handleCycleSpeed}
+                            title="Adjust voice speed"
+                          >
+                            {audioSpeed}x
+                          </button>
+
+                          <span className="ai-audio-provider-tag">
+                            <Volume2 size={11} />
+                            {msg.audio ? "Sarvam Voice" : "Regional Voice"}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {/* Toolbar for AI Responses */}
+                    {/* Toolbar under message */}
                     {!isUser && (
                       <div className="ai-msg-toolbar">
                         <span className="ai-msg-time">
@@ -1015,29 +1273,6 @@ export default function AIAssistant() {
                               })
                             : ""}
                         </span>
-
-                        <button
-                          className={`ai-tool-btn ${isSpeaking ? "active" : ""}`}
-                          onClick={() => handleToggleSpeak(msg.id, msg.message)}
-                          title={isSpeaking ? "Stop voice" : "Read aloud"}
-                        >
-                          {isSpeaking ? (
-                            <>
-                              <Square size={13} />
-                              <div className="ai-audio-wave">
-                                <span className="ai-wave-bar" />
-                                <span className="ai-wave-bar" />
-                                <span className="ai-wave-bar" />
-                              </div>
-                              <span>Stop</span>
-                            </>
-                          ) : (
-                            <>
-                              <Volume2 size={13} />
-                              <span>Listen</span>
-                            </>
-                          )}
-                        </button>
 
                         <button
                           className="ai-tool-btn"
@@ -1076,8 +1311,7 @@ export default function AIAssistant() {
                     <span className="ai-dot" />
                   </div>
                   <span className="ai-typing-text">
-                    FarmVoice AI is analyzing your crops, weather and field
-                    records...
+                    FarmVoice AI is analyzing your crops, weather and preparing voice guidance in {activeDialectInfo.native_name || activeDialectInfo.name}...
                   </span>
                 </div>
               </div>
@@ -1091,14 +1325,14 @@ export default function AIAssistant() {
             {/* Active Voice Listening Pill */}
             {isListening && (
               <div className="ai-voice-active-indicator">
-                <div style={{ display: "flex", alignitems: "center", gap: "8px" }}>
-                  <span className="ai-dot" style={{ background: "#D32F2F" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className="ai-rec-dot" />
                   <span>
-                    Listening in {activeLanguageInfo.native_name} (
-                    {activeLanguageInfo.name})... Speak your question clearly.
+                    Listening in {activeLanguageInfo.native_name} ({activeDialectInfo.native_name || activeDialectInfo.name})... Speak now.
                   </span>
                 </div>
                 <button
+                  type="button"
                   onClick={handleToggleVoice}
                   style={{
                     background: "none",
@@ -1113,6 +1347,13 @@ export default function AIAssistant() {
               </div>
             )}
 
+            {/* Audio Processing Pill */}
+            {audioProcessing && (
+              <div className="ai-voice-active-indicator" style={{ background: "#E3F2FD", borderColor: "#90CAF9", color: "#1565C0" }}>
+                <span>Transcribing your spoken regional voice with AI...</span>
+              </div>
+            )}
+
             <div className="ai-composer-box">
               <textarea
                 ref={textareaRef}
@@ -1124,7 +1365,7 @@ export default function AIAssistant() {
                     handleSendMessage();
                   }
                 }}
-                placeholder={`Ask in ${activeLanguageInfo.native_name} or English (e.g. crop care, disease, weather, schemes)...`}
+                placeholder={`Ask in ${activeLanguageInfo.native_name} or English (press mic to speak)...`}
                 rows={1}
                 className="ai-composer-textarea"
                 disabled={sending}
@@ -1139,7 +1380,7 @@ export default function AIAssistant() {
                   title={
                     isListening
                       ? "Stop listening"
-                      : `Speak in ${activeLanguageInfo.name}`
+                      : `Speak in ${activeLanguageInfo.name} (${activeDialectInfo.name})`
                   }
                   disabled={sending}
                 >
@@ -1162,13 +1403,10 @@ export default function AIAssistant() {
             {/* Composer Footer Info */}
             <div className="ai-composer-footer">
               <span>
-                Active Language:{" "}
-                <strong>{activeLanguageInfo.native_name}</strong> (
-                {activeLanguageInfo.name})
+                Language: <strong>{activeLanguageInfo.native_name}</strong> | Dialect: <strong>{activeDialectInfo.native_name || activeDialectInfo.name}</strong>
               </span>
               <span>
-                AI guidance is advisory. Consult local extension officers for
-                field applications.
+                Voice Mode: <strong>{voiceMode ? "Enabled (Spoken Responses)" : "Disabled"}</strong>
               </span>
             </div>
           </div>

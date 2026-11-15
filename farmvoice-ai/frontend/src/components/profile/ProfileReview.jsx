@@ -186,6 +186,22 @@ export default function ProfileReview({
                 </span>
               </div>
               <div className="review-field">
+                <span className="review-label">Regional Dialect</span>
+                <span className="review-value">
+                  {form.preferred_dialect || "Standard"}
+                </span>
+              </div>
+              <div className="review-field">
+                <span className="review-label">Voice Assistance</span>
+                <span className="review-value">
+                  {form.voice_enabled !== false ? (
+                    <span className="badge badge-success">Enabled</span>
+                  ) : (
+                    <span className="badge badge-secondary">Muted</span>
+                  )}
+                </span>
+              </div>
+              <div className="review-field">
                 <span className="review-label">Notifications</span>
                 <span className="review-value">
                   {form.notifications_enabled ? (

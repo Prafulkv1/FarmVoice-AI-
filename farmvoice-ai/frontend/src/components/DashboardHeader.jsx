@@ -43,7 +43,9 @@ export default function DashboardHeader() {
         <div className="header-left-pane">
           <div className="header-title-wrap">
             <h1 className="header-page-title">{currentTitle}</h1>
-            {farmName && <span className="header-farm-badge">🌾 {farmName}</span>}
+            {farmName && (
+              <span className="header-farm-badge">🌾 {farmName}</span>
+            )}
           </div>
         </div>
 

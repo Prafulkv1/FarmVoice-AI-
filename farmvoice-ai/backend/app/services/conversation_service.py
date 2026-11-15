@@ -18,7 +18,7 @@ class ConversationService:
     """Handles conversation lifecycle, message logging, and farmer isolation."""
 
     @staticmethod
-    def create_conversation(user_id, title=None, language="en"):
+    def create_conversation(user_id, title=None, language="en", dialect="standard"):
         """Start a new AI conversation session for the authenticated farmer."""
         lang_code = LanguageService.normalize_language_code(language)
         conv_title = title.strip() if title and title.strip() else "New Farming Advisory"
@@ -27,6 +27,7 @@ class ConversationService:
             user_id=user_id,
             title=conv_title[:250],
             language=lang_code,
+            dialect=dialect or "standard",
         )
 
         try:

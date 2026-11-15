@@ -34,19 +34,30 @@ export default function FarmDiary() {
 
   const fetchAllData = async () => {
     try {
-      const [cropsRes, activitiesRes, harvestsRes, expensesRes] = await Promise.all([
-        farmDiaryService.listCrops().catch(() => ({ data: { crops: [] } })),
-        farmDiaryService.listActivities().catch(() => ({ data: { activities: [] } })),
-        farmDiaryService.listHarvest().catch(() => ({ data: { harvest_records: [] } })),
-        farmDiaryService.listExpenses().catch(() => ({ data: { expenses: [] } })),
-      ]);
+      const [cropsRes, activitiesRes, harvestsRes, expensesRes] =
+        await Promise.all([
+          farmDiaryService.listCrops().catch(() => ({ data: { crops: [] } })),
+          farmDiaryService
+            .listActivities()
+            .catch(() => ({ data: { activities: [] } })),
+          farmDiaryService
+            .listHarvest()
+            .catch(() => ({ data: { harvest_records: [] } })),
+          farmDiaryService
+            .listExpenses()
+            .catch(() => ({ data: { expenses: [] } })),
+        ]);
 
       if (cropsRes.data?.crops) setCrops(cropsRes.data.crops);
-      if (activitiesRes.data?.activities) setActivities(activitiesRes.data.activities);
-      if (harvestsRes.data?.harvest_records) setHarvests(harvestsRes.data.harvest_records);
+      if (activitiesRes.data?.activities)
+        setActivities(activitiesRes.data.activities);
+      if (harvestsRes.data?.harvest_records)
+        setHarvests(harvestsRes.data.harvest_records);
       if (expensesRes.data?.expenses) setExpenses(expensesRes.data.expenses);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to fetch farm diary data");
+      setError(
+        err.response?.data?.message || "Failed to fetch farm diary data",
+      );
     } finally {
       setLoading(false);
     }
@@ -63,7 +74,8 @@ export default function FarmDiary() {
     {
       icon: Activity,
       label: "Currently Growing",
-      value: crops.filter((c) => c.crop_status === "Growing" || !c.crop_status).length,
+      value: crops.filter((c) => c.crop_status === "Growing" || !c.crop_status)
+        .length,
       note: "Crops in active growth",
       color: "#2E7D32",
     },
@@ -106,11 +118,18 @@ export default function FarmDiary() {
             </div>
             <h1 className="welcome-heading">Farm Diary &amp; Operations</h1>
             <p className="welcome-sub">
-              Log daily cultivation tasks, monitor crop growth stages, and track harvest yields and expenses.
+              Log daily cultivation tasks, monitor crop growth stages, and track
+              harvest yields and expenses.
             </p>
             <div className="welcome-meta">
               <span className="welcome-meta-item">
-                <Calendar size={14} /> {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                <Calendar size={14} />{" "}
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </span>
               <span className="welcome-meta-item">
                 <Sparkles size={14} /> FarmVoice AI Ledger
@@ -190,12 +209,18 @@ export default function FarmDiary() {
                       <div className="timeline-dot" />
                       <div className="timeline-content">
                         <div className="timeline-top">
-                          <span className="timeline-type">{act.activity_type || "Farming Task"}</span>
+                          <span className="timeline-type">
+                            {act.activity_type || "Farming Task"}
+                          </span>
                           <span className="timeline-date">
-                            {act.activity_date ? new Date(act.activity_date).toLocaleDateString() : "Recent"}
+                            {act.activity_date
+                              ? new Date(act.activity_date).toLocaleDateString()
+                              : "Recent"}
                           </span>
                         </div>
-                        <p className="timeline-desc">{act.activity_description || "Activity recorded"}</p>
+                        <p className="timeline-desc">
+                          {act.activity_description || "Activity recorded"}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -234,7 +259,10 @@ export default function FarmDiary() {
                       <div className="crop-chip-info">
                         <div className="crop-chip-name">{crop.crop_name}</div>
                         <div className="crop-chip-meta">
-                          {crop.crop_variety || "Standard Variety"} &bull; {crop.land_area ? `${crop.land_area} acres` : "Acreage not specified"}
+                          {crop.crop_variety || "Standard Variety"} &bull;{" "}
+                          {crop.land_area
+                            ? `${crop.land_area} acres`
+                            : "Acreage not specified"}
                         </div>
                       </div>
                       <span className="crop-chip-status">
@@ -245,7 +273,10 @@ export default function FarmDiary() {
                 </div>
               ) : (
                 <div className="empty-panel-notice">
-                  <p>No crops registered yet. Add crops to track sowing to harvest.</p>
+                  <p>
+                    No crops registered yet. Add crops to track sowing to
+                    harvest.
+                  </p>
                 </div>
               )}
             </div>
@@ -272,11 +303,16 @@ export default function FarmDiary() {
                   <span>Variety: {crop.crop_variety || "Not specified"}</span>
                 </div>
                 <div className="record-meta-line">
-                  <span>Land Area: {crop.land_area ? `${crop.land_area} acres` : "—"}</span>
+                  <span>
+                    Land Area:{" "}
+                    {crop.land_area ? `${crop.land_area} acres` : "—"}
+                  </span>
                 </div>
                 {crop.sowing_date && (
                   <div className="record-meta-line">
-                    <span>Sown on: {new Date(crop.sowing_date).toLocaleDateString()}</span>
+                    <span>
+                      Sown on: {new Date(crop.sowing_date).toLocaleDateString()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -301,11 +337,17 @@ export default function FarmDiary() {
                     <Activity size={20} />
                   </div>
                   <span className="record-date-badge">
-                    {act.activity_date ? new Date(act.activity_date).toLocaleDateString() : "—"}
+                    {act.activity_date
+                      ? new Date(act.activity_date).toLocaleDateString()
+                      : "—"}
                   </span>
                 </div>
-                <h3 className="record-title">{act.activity_type || "Farming Activity"}</h3>
-                <p className="record-desc">{act.activity_description || "Details recorded in diary"}</p>
+                <h3 className="record-title">
+                  {act.activity_type || "Farming Activity"}
+                </h3>
+                <p className="record-desc">
+                  {act.activity_description || "Details recorded in diary"}
+                </p>
               </div>
             ))}
             {activities.length === 0 && (
@@ -324,11 +366,16 @@ export default function FarmDiary() {
             {harvests.map((h, idx) => (
               <div key={idx} className="diary-record-card">
                 <div className="record-card-top">
-                  <div className="record-icon-box" style={{ background: "#FFF9C4", color: "#F57F17" }}>
+                  <div
+                    className="record-icon-box"
+                    style={{ background: "#FFF9C4", color: "#F57F17" }}
+                  >
                     <Award size={20} />
                   </div>
                   <span className="record-date-badge">
-                    {h.harvest_date ? new Date(h.harvest_date).toLocaleDateString() : "—"}
+                    {h.harvest_date
+                      ? new Date(h.harvest_date).toLocaleDateString()
+                      : "—"}
                   </span>
                 </div>
                 <h3 className="record-title">
@@ -353,17 +400,27 @@ export default function FarmDiary() {
             {expenses.map((exp, idx) => (
               <div key={idx} className="diary-record-card">
                 <div className="record-card-top">
-                  <div className="record-icon-box" style={{ background: "#E8F5E9", color: "#2E7D32" }}>
+                  <div
+                    className="record-icon-box"
+                    style={{ background: "#E8F5E9", color: "#2E7D32" }}
+                  >
                     <DollarSign size={20} />
                   </div>
-                  <span className="record-amount-badge">
-                    ₹{exp.amount}
-                  </span>
+                  <span className="record-amount-badge">₹{exp.amount}</span>
                 </div>
-                <h3 className="record-title">{exp.expense_category || "Farm Expense"}</h3>
-                <p className="record-desc">{exp.description || "Operational farming cost"}</p>
+                <h3 className="record-title">
+                  {exp.expense_category || "Farm Expense"}
+                </h3>
+                <p className="record-desc">
+                  {exp.description || "Operational farming cost"}
+                </p>
                 <div className="record-meta-line">
-                  <span>Date: {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString() : "—"}</span>
+                  <span>
+                    Date:{" "}
+                    {exp.expense_date
+                      ? new Date(exp.expense_date).toLocaleDateString()
+                      : "—"}
+                  </span>
                 </div>
               </div>
             ))}

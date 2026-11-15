@@ -32,6 +32,15 @@ class FarmerProfile(db.Model):
     preferred_language = db.Column(
         db.String(50), nullable=False, default="English"
     )
+    preferred_dialect = db.Column(
+        db.String(50), nullable=False, default="standard"
+    )
+    voice_enabled = db.Column(
+        db.Boolean, nullable=False, default=True
+    )
+    auto_play_voice = db.Column(
+        db.Boolean, nullable=False, default=False
+    )
     notifications_enabled = db.Column(
         db.Boolean, nullable=False, default=True
     )
@@ -83,6 +92,9 @@ class FarmerProfile(db.Model):
             "irrigation_type": self.irrigation_type,
             "farming_experience": self.farming_experience,
             "preferred_language": self.preferred_language,
+            "preferred_dialect": self.preferred_dialect or "standard",
+            "voice_enabled": bool(self.voice_enabled if self.voice_enabled is not None else True),
+            "auto_play_voice": bool(self.auto_play_voice),
             "notifications_enabled": bool(self.notifications_enabled),
             "main_crops": crop_list,
             "crops": crop_list,
