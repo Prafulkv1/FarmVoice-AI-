@@ -4,17 +4,17 @@ export const farmDiaryService = {
   // =========================
   // Crops
   // =========================
-  listCrops: () => api.get("/farm-diary/crops"),
-  addCrop: (data) => api.post("/farm-diary/crops", data),
-  getCrop: (cropId) => api.get(`/farm-diary/crops/${cropId}`),
-  updateCrop: (cropId, data) => api.put(`/farm-diary/crops/${cropId}`, data),
-  deleteCrop: (cropId) => api.delete(`/farm-diary/crops/${cropId}`),
+  listCrops: () => api.get("/api/farm-diary/crops"),
+  addCrop: (data) => api.post("/api/farm-diary/crops", data),
+  getCrop: (cropId) => api.get(`/api/farm-diary/crops/${cropId}`),
+  updateCrop: (cropId, data) => api.put(`/api/farm-diary/crops/${cropId}`, data),
+  deleteCrop: (cropId) => api.delete(`/api/farm-diary/crops/${cropId}`),
 
   // =========================
   // Activities
   // =========================
   listActivities: (params) => {
-    let url = "/farm-diary/activities";
+    let url = "/api/farm-diary/activities";
 
     if (params) {
       const queryParams = [];
@@ -34,19 +34,19 @@ export const farmDiaryService = {
     return api.get(url);
   },
 
-  addActivity: (data) => api.post("/farm-diary/activities", data),
+  addActivity: (data) => api.post("/api/farm-diary/activities", data),
 
   updateActivity: (activityId, data) =>
-    api.put(`/farm-diary/activities/${activityId}`, data),
+    api.put(`/api/farm-diary/activities/${activityId}`, data),
 
   deleteActivity: (activityId) =>
-    api.delete(`/farm-diary/activities/${activityId}`),
+    api.delete(`/api/farm-diary/activities/${activityId}`),
 
   // =========================
   // Fertilizer Records
   // =========================
   listFertilizers: (params) => {
-    let url = "/farm-diary/fertilizers";
+    let url = "/api/farm-diary/fertilizers";
 
     if (params?.crop_id) {
       url += `?crop_id=${encodeURIComponent(params.crop_id)}`;
@@ -55,19 +55,19 @@ export const farmDiaryService = {
     return api.get(url);
   },
 
-  addFertilizer: (data) => api.post("/farm-diary/fertilizers", data),
+  addFertilizer: (data) => api.post("/api/farm-diary/fertilizers", data),
 
   updateFertilizer: (recordId, data) =>
-    api.put(`/farm-diary/fertilizers/${recordId}`, data),
+    api.put(`/api/farm-diary/fertilizers/${recordId}`, data),
 
   deleteFertilizer: (recordId) =>
-    api.delete(`/farm-diary/fertilizers/${recordId}`),
+    api.delete(`/api/farm-diary/fertilizers/${recordId}`),
 
   // =========================
   // Irrigation Records
   // =========================
   listIrrigation: (params) => {
-    let url = "/farm-diary/irrigation";
+    let url = "/api/farm-diary/irrigation";
 
     if (params?.crop_id) {
       url += `?crop_id=${encodeURIComponent(params.crop_id)}`;
@@ -76,13 +76,13 @@ export const farmDiaryService = {
     return api.get(url);
   },
 
-  addIrrigation: (data) => api.post("/farm-diary/irrigation", data),
+  addIrrigation: (data) => api.post("/api/farm-diary/irrigation", data),
 
   updateIrrigation: (recordId, data) =>
-    api.put(`/farm-diary/irrigation/${recordId}`, data),
+    api.put(`/api/farm-diary/irrigation/${recordId}`, data),
 
   deleteIrrigation: (recordId) =>
-    api.delete(`/farm-diary/irrigation/${recordId}`),
+    api.delete(`/api/farm-diary/irrigation/${recordId}`),
 
   // =========================
   // Pest Management
@@ -100,18 +100,18 @@ export const farmDiaryService = {
 
     return api.get(
       query
-        ? `/farm-diary/pest-management?${query}`
-        : "/farm-diary/pest-management",
+        ? `/api/farm-diary/pest-management?${query}`
+        : "/api/farm-diary/pest-management",
     );
   },
 
-  addPestManagement: (data) => api.post("/farm-diary/pest-management", data),
+  addPestManagement: (data) => api.post("/api/farm-diary/pest-management", data),
 
   updatePestManagement: (recordId, data) =>
-    api.put(`/farm-diary/pest-management/${recordId}`, data),
+    api.put(`/api/farm-diary/pest-management/${recordId}`, data),
 
   deletePestManagement: (recordId) =>
-    api.delete(`/farm-diary/pest-management/${recordId}`),
+    api.delete(`/api/farm-diary/pest-management/${recordId}`),
 
   // =========================
   // Harvest Records
@@ -126,16 +126,16 @@ export const farmDiaryService = {
     const query = queryParams.toString();
 
     return api.get(
-      query ? `/farm-diary/harvest?${query}` : "/farm-diary/harvest",
+      query ? `/api/farm-diary/harvest?${query}` : "/api/farm-diary/harvest",
     );
   },
 
-  addHarvest: (data) => api.post("/farm-diary/harvest", data),
+  addHarvest: (data) => api.post("/api/farm-diary/harvest", data),
 
   updateHarvest: (recordId, data) =>
-    api.put(`/farm-diary/harvest/${recordId}`, data),
+    api.put(`/api/farm-diary/harvest/${recordId}`, data),
 
-  deleteHarvest: (recordId) => api.delete(`/farm-diary/harvest/${recordId}`),
+  deleteHarvest: (recordId) => api.delete(`/api/farm-diary/harvest/${recordId}`),
 
   // =========================
   // Farm Expenses
@@ -152,14 +152,14 @@ export const farmDiaryService = {
     const query = queryParams.toString();
 
     return api.get(
-      query ? `/farm-diary/expenses?${query}` : "/farm-diary/expenses",
+      query ? `/api/farm-diary/expenses?${query}` : "/api/farm-diary/expenses",
     );
   },
 
-  addExpense: (data) => api.post("/farm-diary/expenses", data),
+  addExpense: (data) => api.post("/api/farm-diary/expenses", data),
 
   updateExpense: (expenseId, data) =>
-    api.put(`/farm-diary/expenses/${expenseId}`, data),
+    api.put(`/api/farm-diary/expenses/${expenseId}`, data),
 
-  deleteExpense: (expenseId) => api.delete(`/farm-diary/expenses/${expenseId}`),
+  deleteExpense: (expenseId) => api.delete(`/api/farm-diary/expenses/${expenseId}`),
 };

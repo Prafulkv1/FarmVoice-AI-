@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Sprout, Mail, AlertCircle } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Sprout, Mail, AlertCircle, CheckCircle } from "lucide-react";
 import { authService } from "../services/authService";
 import { validateRegistration } from "../utils/validation";
 import FormInput from "../components/FormInput";
+import ThemeToggle from "../components/ThemeToggle";
 import "../styles/register.css";
 
 export default function Register() {
@@ -55,7 +56,7 @@ export default function Register() {
         confirm_password: form.confirm_password,
       });
       if (res.data.success) {
-        setMessage(res.data.message || "Registration successful!");
+        setMessage(res.data.message || "Registration successful! Redirecting to login...");
         setLoading(false);
         // Redirect to login after a short delay so the user can read the message
         setTimeout(() => navigate("/login", { replace: true }), 1500);
@@ -71,7 +72,7 @@ export default function Register() {
       setServerError(
         typeof msg === "string"
           ? msg
-          : "Registration failed. Please try again.",
+          : "Registration failed. Please try again."
       );
       setLoading(false);
     }
@@ -79,6 +80,7 @@ export default function Register() {
 
   return (
     <div className="auth-split-page">
+      {/* Left Branding Pane */}
       <div className="auth-split-left">
         <div className="auth-left-pattern" aria-hidden="true" />
         <div className="auth-left-content">
@@ -89,10 +91,10 @@ export default function Register() {
             <span className="auth-left-name">FarmVoice AI</span>
           </div>
           <div className="auth-left-welcome">
-            <h1 className="auth-left-heading">Join FarmVoice AI! 👋</h1>
+            <h1 className="auth-left-heading">Join FarmVoice AI 👋</h1>
             <p className="auth-left-desc">
-              Create your account and explore intelligent farming assistance for
-              better agricultural decisions.
+              Create your farmer account and empower your agricultural operations
+              with multilingual AI guidance, localized weather intelligence, and crop tracking.
             </p>
           </div>
           <div className="auth-left-footer">
@@ -101,21 +103,30 @@ export default function Register() {
         </div>
       </div>
 
+      {/* Right Form Pane */}
       <div className="auth-split-right">
+        {/* Top bar with Home shortcut & Theme Switcher */}
+        <div className="auth-top-nav-bar">
+          <Link to="/" className="auth-back-home">
+            &larr; Back to Home
+          </Link>
+          <ThemeToggle />
+        </div>
+
         <div className="auth-right-brand">
           <div className="auth-right-icon">
-            <Sprout size={22} color="#3737D9" />
+            <Sprout size={22} />
           </div>
           <span className="auth-right-name">FarmVoice AI</span>
         </div>
 
         <div className="auth-right-form auth-right-form-scroll">
-          <h1 className="auth-right-title">Create Your Account</h1>
+          <h1 className="auth-right-title">Create Farmer Account</h1>
           <p className="auth-right-sub">
             Already have an account?{" "}
-            <a href="/login" className="auth-right-link">
-              Log in.
-            </a>
+            <Link to="/login" className="auth-right-link">
+              Log in here.
+            </Link>
           </p>
 
           {serverError && (
@@ -126,7 +137,7 @@ export default function Register() {
           )}
           {message && (
             <div className="alert alert-success">
-              <Mail size={18} />
+              <CheckCircle size={18} />
               <span>{message}</span>
             </div>
           )}
@@ -135,7 +146,7 @@ export default function Register() {
             <FormInput
               id="farm_name"
               label="Farm Name"
-              placeholder="Enter your farm name"
+              placeholder="Enter your farm or estate name"
               icon="farm"
               value={form.farm_name}
               onChange={handleChange("farm_name")}
@@ -144,7 +155,7 @@ export default function Register() {
             <FormInput
               id="username"
               label="Farmer Username"
-              placeholder="Create a username"
+              placeholder="Choose a username"
               icon="user"
               value={form.username}
               onChange={handleChange("username")}
@@ -152,8 +163,8 @@ export default function Register() {
             />
             <FormInput
               id="email"
-              label="Gmail Address"
-              placeholder="Enter your email address"
+              label="Email Address"
+              placeholder="e.g. farmer@gmail.com"
               icon="mail"
               type="email"
               value={form.email}
@@ -174,7 +185,7 @@ export default function Register() {
             <FormInput
               id="password"
               label="Password"
-              placeholder="Create a password"
+              placeholder="Create a secure password"
               icon="lock"
               type="password"
               value={form.password}
@@ -201,15 +212,15 @@ export default function Register() {
               className="btn-auth-primary"
               disabled={loading}
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? "Creating Account..." : "Create Farmer Account"}
             </button>
           </form>
 
           <div className="auth-switch">
-            Already have an account?{" "}
-            <a href="/login" className="auth-switch-link">
-              Login
-            </a>
+            Already registered?{" "}
+            <Link to="/login" className="auth-switch-link">
+              Sign In
+            </Link>
           </div>
         </div>
       </div>

@@ -1,53 +1,116 @@
-import { useAuth } from "../components/AuthProvider";
-import { Crop, Activity, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { farmDiaryService } from "../services/farmDiaryService";
+import { Crop, Activity, MapPin, ArrowRight, Sprout, Plus } from "lucide-react";
 import "../styles/dashboard.css";
 
 export default function CropInfo() {
+  const [crops, setCrops] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    farmDiaryService
+      .listCrops()
+      .then((res) => {
+        if (res.data?.crops) setCrops(res.data.crops);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <div className="page">
+    <div className="page crop-info-page">
       <div className="page-header">
-        <h1 className="page-title">Crop Information</h1>
-        <p className="page-sub">
-          Track crop growth, stages and health.
-        </p>
+        <div>
+          <h1 className="page-title">Crop Information &amp; Growth Tracking</h1>
+          <p className="page-sub">
+            Track cultivated varieties, growth cycles, and acreage across your farmland.
+          </p>
+        </div>
       </div>
 
       <section className="feature-grid">
         <div className="feature-card">
-          <div className="feature-icon"><Crop size={20} /></div>
+          <div className="feature-icon"><Crop size={22} /></div>
           <div>
-            <p className="feature-title">Crop Tracking</p>
+            <p className="feature-title">Crop Cycle Monitoring</p>
             <p className="feature-text">
-              Add and track the crops grown on your farm with growth stages.
+              Track sowing dates, vegetative stages, flowering, and expected harvest timelines.
             </p>
           </div>
         </div>
+
         <div className="feature-card">
-          <div className="feature-icon"><Activity size={20} /></div>
+          <div className="feature-icon"><Activity size={22} /></div>
           <div>
-            <p className="feature-title">Crop Health</p>
+            <p className="feature-title">Agronomic Health &amp; Advisory</p>
             <p className="feature-text">
-              Monitor crop health and receive care recommendations.
+              Get targeted pest control and fertilization recommendations via the AI Assistant.
             </p>
           </div>
         </div>
+
         <div className="feature-card">
-          <div className="feature-icon"><MapPin size={20} /></div>
+          <div className="feature-icon"><MapPin size={22} /></div>
           <div>
-            <p className="feature-title">Land Records</p>
+            <p className="feature-title">Acreage &amp; Land Allocation</p>
             <p className="feature-text">
-              Maintain records of your farmland and crop zones.
+              Maintain accurate records of land parcel allocations for Kharif and Rabi seasons.
             </p>
           </div>
         </div>
       </section>
 
-      <div className="empty-state">
-        <p>
-          No crop data has been added yet. Crop information features will be
-          available in an upcoming phase.
-        </p>
-      </div>
+      {/* Registered Crops List */}
+      <section className="diary-section-detail" style={{ marginTop: "1rem" }}>
+        <div className="section-title-row">
+          <h2 className="section-title">Your Registered Crops ({crops.length})</h2>
+          <Link to="/farm-diary" className="highlight-card-link">
+            <span>Manage in Farm Diary</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+
+        {crops.length > 0 ? (
+          <div className="diary-cards-grid">
+            {crops.map((crop, idx) => (
+              <div key={idx} className="diary-record-card">
+                <div className="record-card-top">
+                  <div className="record-icon-box">
+                    <Crop size={22} />
+                  </div>
+                  <span className="record-status-badge">
+                    {crop.crop_status || "Active"}
+                  </span>
+                </div>
+                <h3 className="record-title">{crop.crop_name}</h3>
+                <div className="record-meta-line">
+                  <span>Variety: {crop.crop_variety || "Standard"}</span>
+                </div>
+                <div className="record-meta-line">
+                  <span>Land Area: {crop.land_area ? `${crop.land_area} acres` : "—"}</span>
+                </div>
+                {crop.sowing_date && (
+                  <div className="record-meta-line">
+                    <span>Sown: {new Date(crop.sowing_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <Sprout size={36} style={{ color: "var(--primary-color)", marginBottom: 8 }} />
+            <p>
+              No crop records found in your Farm Diary yet. Register crops to track growth stages and receive weather-linked advisories.
+            </p>
+            <Link to="/farm-diary" className="btn-hero-primary" style={{ marginTop: 14 }}>
+              <span>Open Farm Diary</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

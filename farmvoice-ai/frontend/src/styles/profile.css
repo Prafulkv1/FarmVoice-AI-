@@ -30,6 +30,21 @@
   --ag-error-bg: #FFEBEE;
 }
 
+[data-theme="dark"] {
+  --ag-forest-green: #66BB6A;
+  --ag-leaf-green: #81C784;
+  --ag-light-green: rgba(102, 187, 106, 0.18);
+  --ag-light-green-alt: rgba(129, 199, 132, 0.22);
+  --ag-bg: #121A16;
+  --ag-white: #1F2D24;
+  --ag-dark-text: #F1F5F2;
+  --ag-muted-text: #B0BEC5;
+  --ag-border: #34463A;
+  --ag-border-light: #2A3C30;
+  --ag-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  --ag-shadow-hover: 0 8px 26px rgba(0, 0, 0, 0.55);
+}
+
 .profile-container {
   max-width: 1040px;
   margin: 0 auto;

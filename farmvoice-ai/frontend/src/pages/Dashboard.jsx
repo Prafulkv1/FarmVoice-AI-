@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../components/AuthProvider";
 import { authService } from "../services/authService";
+import { farmDiaryService } from "../services/farmDiaryService";
+import { weatherService } from "../services/weatherService";
 import DashboardCard from "../components/DashboardCard";
 import {
   Building2,
@@ -12,6 +15,13 @@ import {
   Calendar,
   TrendingUp,
   MapPin,
+  ShieldCheck,
+  BookOpen,
+  Bell,
+  ArrowRight,
+  Sun,
+  Droplets,
+  Wind,
 } from "lucide-react";
 import "../styles/dashboard.css";
 
@@ -19,36 +29,52 @@ const quickActions = [
   {
     icon: Sparkles,
     title: "Ask AI Assistant",
-    description: "Get farming advice in your regional language.",
+    description: "Get farming advice in your regional language with voice.",
     href: "/ai-assistant",
-    accent: "var(--color-primary)",
-  },
-  {
-    icon: Building2,
-    title: "Manage My Farm",
-    description: "View and update your farm details.",
-    href: "/my-farm",
-    accent: "var(--color-secondary)",
-  },
-  {
-    icon: Crop,
-    title: "Crop Information",
-    description: "Track crop growth and health.",
-    href: "/crop-info",
-    accent: "var(--color-accent)",
+    accent: "var(--primary-color)",
   },
   {
     icon: Cloud,
     title: "Check Weather",
-    description: "Localized weather forecasts.",
+    description: "Localized agricultural forecasts and rain models.",
     href: "/weather",
-    accent: "var(--color-primary-light)",
+    accent: "#0288D1",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Government Schemes",
+    description: "Explore PM-KISAN, PMFBY, and farmer subsidies.",
+    href: "/government-schemes",
+    accent: "#388E3C",
+  },
+  {
+    icon: BookOpen,
+    title: "Farm Diary",
+    description: "Log daily farm activities, expenses, and harvests.",
+    href: "/farm-diary",
+    accent: "#E65100",
+  },
+  {
+    icon: Building2,
+    title: "Manage My Farm",
+    description: "View and update your farm details and land records.",
+    href: "/my-farm",
+    accent: "#5C6BC0",
+  },
+  {
+    icon: Crop,
+    title: "Crop Information",
+    description: "Track crop growth stages, variety, and health.",
+    href: "/crop-info",
+    accent: "#7CB342",
   },
 ];
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [date, setDate] = useState("");
+  const [cropCount, setCropCount] = useState(null);
+  const [currentWeather, setCurrentWeather] = useState(null);
 
   useEffect(() => {
     setDate(
@@ -59,69 +85,107 @@ export default function Dashboard() {
         year: "numeric",
       })
     );
+
+    // Refresh profile in background
     authService.getProfile().catch(() => {});
+
+    // Attempt to read actual crop count if available
+    farmDiaryService
+      .listCrops()
+      .then((res) => {
+        if (res.data?.crops) {
+          setCropCount(res.data.crops.length);
+        }
+      })
+      .catch(() => {});
+
+    // Attempt to read current weather if available
+    weatherService
+      .getCurrentWeather()
+      .then((res) => {
+        if (res.data?.current) {
+          setCurrentWeather(res.data.current);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const username = user?.username || "Farmer";
   const farmName = user?.farm_name;
+  const landArea = user?.total_land_size
+    ? `${user.total_land_size} ${user.land_unit || "Acres"}`
+    : "—";
 
   const stats = [
     {
       icon: Crop,
       label: "Registered Crops",
-      value: "—",
-      note: "Crop tracking coming soon",
+      value: cropCount !== null ? cropCount : "—",
+      note: cropCount !== null ? "From your Farm Diary" : "Crop tracking active",
+      color: "var(--primary-color)",
     },
     {
       icon: MapPin,
       label: "Farm Area",
-      value: "—",
-      note: "Land records coming soon",
+      value: landArea,
+      note: user?.total_land_size ? "Verified land record" : "Update in profile",
+      color: "#2E7D32",
     },
     {
       icon: Cloud,
-      label: "Weather",
-      value: "—",
-      note: "Weather integration pending",
+      label: "Weather Intel",
+      value: currentWeather?.temperature ? `${Math.round(currentWeather.temperature)}°C` : "—",
+      note: currentWeather?.weather_description || "Localized forecast active",
+      color: "#0288D1",
     },
     {
       icon: Activity,
       label: "AI Queries",
-      value: "—",
-      note: "Activity tracking pending",
+      value: "Active",
+      note: "Voice & text assistant ready",
+      color: "#FBC02D",
     },
   ];
 
   return (
     <div className="dashboard-page">
+      {/* Welcome Banner */}
       <section className="welcome-section">
         <div className="welcome-banner">
           <div className="welcome-banner-text">
-            <h1>Welcome back, {username} 👋</h1>
+            <div className="welcome-badge">
+              <span className="live-dot" />
+              <span>Active Agricultural Portal</span>
+            </div>
+            <h1 className="welcome-heading">Welcome back, {username}! 👋</h1>
             <p className="welcome-sub">
-              Here is your farm overview. {farmName ? `Farm: ${farmName}` : ""}
+              {farmName ? `Managing ${farmName}` : "Here is your farm overview and agricultural operations."}
             </p>
             <div className="welcome-meta">
               <span className="welcome-meta-item">
-                <Calendar size={14} /> {date}
+                <Calendar size={15} /> {date}
               </span>
               <span className="welcome-meta-item">
-                <TrendingUp size={14} /> FarmVoice AI Dashboard
+                <TrendingUp size={15} /> Real-time Agricultural Intel
               </span>
             </div>
           </div>
           <div className="welcome-illustration">
-            <SproutIcon />
+            <SproutIllustration />
           </div>
         </div>
       </section>
 
+      {/* Statistics Section */}
       <section className="stats-section">
-        <h2 className="section-title">Overview</h2>
+        <div className="section-title-row">
+          <h2 className="section-title">Farm Overview</h2>
+          <span className="section-title-sub">Current status of your farm holdings</span>
+        </div>
         <div className="stats-grid">
           {stats.map((stat) => (
             <div className="stat-card" key={stat.label}>
-              <div className="stat-icon">
+              <div className="stat-icon-wrap" style={{ color: stat.color }}>
                 <stat.icon size={22} />
               </div>
               <div className="stat-body">
@@ -134,8 +198,12 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Quick Access Grid */}
       <section className="cards-section">
-        <h2 className="section-title">Quick Access</h2>
+        <div className="section-title-row">
+          <h2 className="section-title">Quick Access</h2>
+          <span className="section-title-sub">Essential farmer tools and services</span>
+        </div>
         <div className="cards-grid">
           {quickActions.map((card) => (
             <DashboardCard key={card.title} {...card} />
@@ -143,41 +211,150 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Weather & Advisories Quick Highlights */}
+      <section className="dashboard-split-section">
+        <div className="dashboard-highlight-card">
+          <div className="highlight-card-header">
+            <div className="header-icon-pill weather-pill">
+              <Cloud size={18} />
+              <span>Weather &amp; Precipitation</span>
+            </div>
+            <Link to="/weather" className="highlight-card-link">
+              <span>Full Forecast</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="highlight-card-body">
+            {currentWeather ? (
+              <div className="weather-preview-box">
+                <div className="weather-preview-temp">
+                  <Sun size={28} className="temp-icon" />
+                  <span className="temp-degree">{Math.round(currentWeather.temperature)}°C</span>
+                  <span className="temp-condition">{currentWeather.weather_description}</span>
+                </div>
+                <div className="weather-preview-meta">
+                  <span>Humidity: {currentWeather.humidity}%</span>
+                  <span>Wind: {currentWeather.wind_speed} km/h</span>
+                </div>
+              </div>
+            ) : (
+              <p className="highlight-text-muted">
+                Localized weather and rain models are active. View the dedicated weather module for 7-day hourly forecasts and IMD advisory alerts.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="dashboard-highlight-card">
+          <div className="highlight-card-header">
+            <div className="header-icon-pill notif-pill">
+              <Bell size={18} />
+              <span>Advisories &amp; Schemes</span>
+            </div>
+            <Link to="/notifications" className="highlight-card-link">
+              <span>View All</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="highlight-card-body">
+            <div className="advisory-preview-item">
+              <div className="advisory-dot" />
+              <div>
+                <h4 className="advisory-title">Kharif Season Support Active</h4>
+                <p className="advisory-desc">
+                  Explore eligible subsidies under PM-KISAN, PMFBY crop insurance, and Soil Health testing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Upcoming Modules / Phase Notice */}
       <section className="placeholders-section">
-        <h2 className="section-title">Upcoming Modules</h2>
+        <div className="section-title-row">
+          <h2 className="section-title">Farm Modules & Roadmap</h2>
+          <span className="section-title-sub">Continuously expanding features for Indian farmers</span>
+        </div>
         <div className="placeholder-grid">
           {[
-            { title: "Recent Farm Activities", icon: Activity, text: "Your recent farm activities will appear here." },
-            { title: "Crop Overview", icon: Crop, text: "Overview of your crops will be displayed here." },
-            { title: "Weather Information", icon: Cloud, text: "Weather details for your location coming soon." },
-            { title: "AI Assistant", icon: Bot, text: "Chat with your AI farming assistant." },
+            {
+              title: "Recent Farm Activities",
+              icon: Activity,
+              text: "Record and review daily land preparation, irrigation, and pesticide sprays in your Farm Diary.",
+              link: "/farm-diary",
+            },
+            {
+              title: "Crop Overview",
+              icon: Crop,
+              text: "Register crop varieties, track acreage, and monitor flowering to harvesting timelines.",
+              link: "/crop-info",
+            },
+            {
+              title: "Meteorological Intelligence",
+              icon: Cloud,
+              text: "Real-time rain forecast charts, soil moisture indicators, and IMD extreme weather alerts.",
+              link: "/weather",
+            },
+            {
+              title: "Multilingual AI Assistant",
+              icon: Bot,
+              text: "Ask questions in Hindi, Telugu, Tamil, Marathi, Punjabi, and 5 other regional languages.",
+              link: "/ai-assistant",
+            },
           ].map((item) => (
-            <div className="placeholder-card" key={item.title}>
+            <Link to={item.link} className="placeholder-card" key={item.title}>
               <div className="placeholder-icon">
-                <item.icon size={20} />
+                <item.icon size={22} />
               </div>
               <h4 className="placeholder-title">{item.title}</h4>
               <p className="placeholder-text">{item.text}</p>
-            </div>
+              <span className="placeholder-link-arrow">
+                <span>Open Module</span>
+                <ArrowRight size={14} />
+              </span>
+            </Link>
           ))}
         </div>
         <p className="coming-soon">
-          AI assistant, crop information, weather updates, government schemes,
-          market prices and reminders will be implemented in upcoming phases.
+          🌾 FarmVoice AI connects your farm to regional meteorological stations, government welfare schemes, and language-first agricultural intelligence.
         </p>
       </section>
     </div>
   );
 }
 
-function SproutIcon() {
+function SproutIllustration() {
   return (
-    <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="60" cy="60" r="58" fill="rgba(255,255,255,0.15)" />
-      <path d="M60 90 V50" stroke="rgba(255,255,255,0.9)" strokeWidth="4" strokeLinecap="round" />
-      <path d="M60 55 C40 55 35 40 35 30 C50 30 60 45 60 55Z" fill="rgba(255,255,255,0.85)" />
-      <path d="M60 65 C80 65 85 50 85 40 C70 40 60 55 60 65Z" fill="rgba(255,255,255,0.7)" />
-      <ellipse cx="60" cy="92" rx="20" ry="6" fill="rgba(255,255,255,0.3)" />
+    <svg
+      width="130"
+      height="130"
+      viewBox="0 0 130 130"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="dashboard-sprout-svg"
+    >
+      <circle cx="65" cy="65" r="62" fill="rgba(255,255,255,0.12)" />
+      <circle cx="65" cy="65" r="48" fill="rgba(255,255,255,0.08)" />
+      {/* Plant Stem */}
+      <path
+        d="M65 96 V52"
+        stroke="rgba(255,255,255,0.95)"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+      />
+      {/* Left Leaf */}
+      <path
+        d="M65 58 C42 58 36 40 36 30 C52 30 65 46 65 58Z"
+        fill="rgba(255,255,255,0.9)"
+      />
+      {/* Right Leaf */}
+      <path
+        d="M65 70 C88 70 94 52 94 42 C78 42 65 58 65 70Z"
+        fill="rgba(255,255,255,0.8)"
+      />
+      {/* Base Mounded Soil */}
+      <ellipse cx="65" cy="98" rx="26" ry="8" fill="rgba(255,255,255,0.35)" />
     </svg>
   );
 }

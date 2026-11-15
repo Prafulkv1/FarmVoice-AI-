@@ -1,60 +1,156 @@
 /* ============================================================================
-   FarmVoice AI - Global Styles & Design Tokens
+   FarmVoice AI - Premium AgriTech Global Styles & Design Tokens
    ============================================================================ */
+
 :root {
-  /* Agricultural green palette */
-  --color-primary: #2E7D32;        /* Primary green */
-  --color-primary-hover: #1B5E20;  /* Dark green */
-  --color-primary-light: #4CAF50;  /* Light green accent */
-  --color-secondary: #75A88A;      /* Sage green */
-  --color-accent: #D6A84B;         /* Harvest gold */
+  /* Prompt specified Light Theme Tokens */
+  --primary-color: #1B5E20;
+  --secondary-color: #2E7D32;
+  --color-primary-light: #4CAF50;
+  --color-active-bg: #E8F5E9;
+  --bg-primary: #F7F9F2;
+  --bg-secondary: #F0F5ED;
+  --bg-card: #FFFFFF;
+  --text-primary: #263238;
+  --text-secondary: #607D8B;
+  --accent-color: #FBC02D;
+  --border-color: #E0E7E0;
 
-  /* Backgrounds */
-  --color-bg: #F5F8F5;             /* Dashboard background */
-  --color-sidebar-bg: #FFFFFF;     /* Sidebar / footer background */
-  --color-card: #FFFFFF;           /* Card background */
-  --color-active-bg: #E8F5E9;      /* Soft light green (active items) */
+  /* Aliases for existing codebase classes */
+  --color-primary: var(--primary-color);
+  --color-primary-hover: #144918;
+  --color-secondary: var(--secondary-color);
+  --color-accent: var(--accent-color);
+  --color-bg: var(--bg-primary);
+  --color-card: var(--bg-card);
+  --color-sidebar-bg: #132219; /* Sleek forest-green sidebar requested */
+  --color-sidebar-text: #E8F5E9;
+  --color-sidebar-text-muted: #8AA894;
+  --color-sidebar-active: #2E7D32;
+  --color-sidebar-border: #1E3326;
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-on-primary: #FFFFFF;
+  --color-input-bg: #F4F7F2;
+  --color-border: var(--border-color);
 
-  /* Text */
-  --color-text-primary: #263238;   /* Main text */
-  --color-text-secondary: #718096; /* Secondary text */
-  --color-text-on-primary: #FFFFFF; /* White / high-contrast light */
+  /* AgriTech variables used in Profile and Weather modules */
+  --ag-forest-green: #1B5E20;
+  --ag-leaf-green: #2E7D32;
+  --ag-light-green: #E8F5E9;
+  --ag-light-green-alt: #C8E6C9;
+  --ag-bg: var(--bg-primary);
+  --ag-white: #FFFFFF;
+  --ag-dark-text: var(--text-primary);
+  --ag-muted-text: var(--text-secondary);
+  --ag-border: var(--border-color);
+  --ag-border-light: #ECEFF1;
+  --ag-shadow: 0 4px 14px rgba(27, 94, 32, 0.08);
+  --ag-shadow-hover: 0 8px 24px rgba(27, 94, 32, 0.12);
 
-  /* Inputs & borders */
-  --color-input-bg: #F1F5F1;       /* Pale mint */
-  --color-border: #E5EDE5;         /* Borders */
-
-  --color-error: #B3402E;
+  --color-error: #D32F2F;
+  --color-error-bg: #FFEBEE;
   --color-success: #2E7D32;
+  --color-success-bg: #E8F5E9;
   --color-info: #1B5E20;
 
   /* Radius */
-  --radius-md: 12px;
   --radius-sm: 8px;
-  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-xl: 24px;
+  --radius-full: 9999px;
 
   /* Shadows */
-  --shadow: 0 4px 20px rgba(46, 125, 50, 0.08);
-  --shadow-sm: 0 2px 8px rgba(46, 125, 50, 0.05);
-  --shadow-card: 0 4px 16px rgba(46, 125, 50, 0.06);
-  --shadow-card-hover: 0 8px 24px rgba(46, 125, 50, 0.12);
-  --shadow-sidebar: 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 12px 40px rgba(46, 125, 50, 0.15);
+  --shadow-sm: 0 2px 6px rgba(27, 94, 32, 0.05);
+  --shadow-card: 0 4px 16px rgba(27, 94, 32, 0.07);
+  --shadow-card-hover: 0 10px 28px rgba(27, 94, 32, 0.13);
+  --shadow-elevated: 0 16px 40px rgba(27, 94, 32, 0.15);
 
   /* Layout */
-  --nav-height: 64px;
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 72px;
+  --nav-height: 70px;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 76px;
 
   /* Typography */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 
   --transition: 0.22s ease;
   --transition-fast: 0.15s ease;
-  --transition-slow: 0.3s ease;
+  --transition-slow: 0.35s ease;
 }
 
+/* ============================================================================
+   Dark Theme (Tokens specified in Section 6)
+   - Deep forest green: #121A16 (DO NOT use #1B5E20 as whole page background)
+   - Secondary background: #19251E
+   - Card background: #1F2D24
+   - Sidebar background: #17231C
+   - Primary green: #66BB6A
+   - Secondary green: #81C784
+   - Main text: #F1F5F2
+   - Secondary text: #B0BEC5
+   - Border: #34463A
+   - Accent yellow: #FBC02D
+   ============================================================================ */
+
+[data-theme="dark"],
+.dark-theme {
+  --primary-color: #66BB6A;
+  --secondary-color: #81C784;
+  --color-primary-light: #A5D6A7;
+  --color-active-bg: rgba(102, 187, 106, 0.14);
+  --bg-primary: #121A16;
+  --bg-secondary: #19251E;
+  --bg-card: #1F2D24;
+  --text-primary: #F1F5F2;
+  --text-secondary: #B0BEC5;
+  --accent-color: #FBC02D;
+  --border-color: #34463A;
+
+  --color-primary: #66BB6A;
+  --color-primary-hover: #81C784;
+  --color-secondary: #81C784;
+  --color-accent: #FBC02D;
+  --color-bg: #121A16;
+  --color-card: #1F2D24;
+  --color-sidebar-bg: #17231C;
+  --color-sidebar-text: #F1F5F2;
+  --color-sidebar-text-muted: #8AA894;
+  --color-sidebar-active: #243E2C;
+  --color-sidebar-border: #26382B;
+  --color-text-primary: #F1F5F2;
+  --color-text-secondary: #B0BEC5;
+  --color-text-on-primary: #121A16;
+  --color-input-bg: #17231C;
+  --color-border: #34463A;
+
+  --ag-forest-green: #66BB6A;
+  --ag-leaf-green: #81C784;
+  --ag-light-green: rgba(102, 187, 106, 0.16);
+  --ag-light-green-alt: rgba(129, 199, 132, 0.22);
+  --ag-bg: #121A16;
+  --ag-white: #1F2D24;
+  --ag-dark-text: #F1F5F2;
+  --ag-muted-text: #B0BEC5;
+  --ag-border: #34463A;
+  --ag-border-light: #2A3C30;
+  --ag-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  --ag-shadow-hover: 0 8px 26px rgba(0, 0, 0, 0.55);
+
+  --color-error: #EF5350;
+  --color-error-bg: rgba(239, 83, 80, 0.15);
+  --color-success: #66BB6A;
+  --color-success-bg: rgba(102, 187, 106, 0.15);
+  --color-info: #42A5F5;
+
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 10px 28px rgba(0, 0, 0, 0.55);
+  --shadow-elevated: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Base reset & typography */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -64,15 +160,18 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  background-color: var(--color-bg);
 }
 
 body {
-  background: var(--color-bg);
+  background-color: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  line-height: 1.55;
+  line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 a {
@@ -89,55 +188,14 @@ button {
 
 img {
   max-width: 100%;
+  height: auto;
   display: block;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-  font-size: 16px;
-}
-
-body {
-  background: var(--color-bg);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  line-height: 1.55;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-button {
+/* Common form controls in theme */
+input, select, textarea {
   font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-}
-
-img {
-  max-width: 100%;
-  display: block;
+  color: var(--color-text-primary);
 }
 
 .visually-hidden {
@@ -149,4 +207,24 @@ img {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
+}
+
+/* Glassmorphism & premium UI helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .glass-panel {
+  background: rgba(31, 45, 36, 0.85);
+  border-color: var(--border-color);
+}
+
+/* Organic background pattern */
+.bg-agro-pattern {
+  background-color: var(--color-bg);
+  background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+  background-size: 24px 24px;
 }

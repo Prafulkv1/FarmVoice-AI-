@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Sprout, AlertCircle } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Sprout, AlertCircle, ArrowLeft } from "lucide-react";
 import { authService } from "../services/authService";
 import { validateLogin } from "../utils/validation";
 import FormInput from "../components/FormInput";
 import { useAuth } from "../components/AuthProvider";
+import ThemeToggle from "../components/ThemeToggle";
 import "../styles/login.css";
 
 export default function Login() {
@@ -68,7 +69,7 @@ export default function Login() {
       // Backend unavailable or network error
       if (!err.response) {
         setServerError(
-          "Unable to connect to the server. Please try again later.",
+          "Unable to connect to the server. Please try again later."
         );
       } else {
         // Generic message: never reveal whether username or password was wrong
@@ -77,7 +78,7 @@ export default function Login() {
           err.response.data?.errors ||
           "Login failed. Please try again.";
         setServerError(
-          typeof msg === "string" ? msg : "Login failed. Please try again.",
+          typeof msg === "string" ? msg : "Login failed. Please try again."
         );
       }
       // Intentionally do NOT clear the username
@@ -88,6 +89,7 @@ export default function Login() {
 
   return (
     <div className="auth-split-page">
+      {/* Left Branding Pane */}
       <div className="auth-split-left">
         <div className="auth-left-pattern" aria-hidden="true" />
         <div className="auth-left-content">
@@ -98,11 +100,10 @@ export default function Login() {
             <span className="auth-left-name">FarmVoice AI</span>
           </div>
           <div className="auth-left-welcome">
-            <h1 className="auth-left-heading">Hello, FarmVoice AI! 👋</h1>
+            <h1 className="auth-left-heading">Hello, Farmer! 👋</h1>
             <p className="auth-left-desc">
-              Your smart farming companion. Get personalized agricultural
-              guidance, regional-language AI assistance, and smarter farming
-              insights.
+              Your smart agricultural companion. Access personalized farming
+              guidance, regional-language AI voice assistance, and verified government schemes.
             </p>
           </div>
           <div className="auth-left-footer">
@@ -111,21 +112,30 @@ export default function Login() {
         </div>
       </div>
 
+      {/* Right Form Pane */}
       <div className="auth-split-right">
+        {/* Top bar with Home shortcut & Theme Switcher */}
+        <div className="auth-top-nav-bar">
+          <Link to="/" className="auth-back-home">
+            &larr; Back to Home
+          </Link>
+          <ThemeToggle />
+        </div>
+
         <div className="auth-right-brand">
           <div className="auth-right-icon">
-            <Sprout size={22} color="#3737D9" />
+            <Sprout size={22} />
           </div>
           <span className="auth-right-name">FarmVoice AI</span>
         </div>
 
         <div className="auth-right-form">
-          <h1 className="auth-right-title">Welcome Back!</h1>
+          <h1 className="auth-right-title">Welcome Back</h1>
           <p className="auth-right-sub">
             Don&rsquo;t have an account?{" "}
-            <a href="/register" className="auth-right-link">
-              Create a new account now.
-            </a>
+            <Link to="/register" className="auth-right-link">
+              Create a new farmer account.
+            </Link>
           </p>
 
           {serverError && (
@@ -158,9 +168,9 @@ export default function Login() {
               onTogglePassword={() => setShowPassword((s) => !s)}
             />
             <div className="auth-forgot">
-              <a href="#" className="auth-forgot-link">
-                Forgot Password?
-              </a>
+              <span className="auth-forgot-link">
+                Forgot password? Contact support
+              </span>
             </div>
 
             <button
@@ -168,15 +178,15 @@ export default function Login() {
               className="btn-auth-primary"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Login"}
+              {loading ? "Signing in..." : "Login to Farm"}
             </button>
           </form>
 
           <div className="auth-switch">
             New Farmer?{" "}
-            <a href="/register" className="auth-switch-link">
+            <Link to="/register" className="auth-switch-link">
               Create Account
-            </a>
+            </Link>
           </div>
         </div>
       </div>
