@@ -62,7 +62,7 @@ class Config:
         "JWT_COOKIE_SAMESITE", "Lax"
     )
 
-    JWT_COOKIE_DOMAIN = None
+    JWT_COOKIE_DOMAIN = os.environ.get("JWT_COOKIE_DOMAIN", "localhost")
 
     JWT_COOKIE_CSRF_PROTECT = True
 
@@ -78,9 +78,9 @@ class Config:
 
     JWT_ACCESS_CSRF_FIELD_NAME = "csrf_token"
 
-    JWT_ACCESS_COOKIE_PATH = "/api"
+    JWT_ACCESS_COOKIE_PATH = "/"
 
-    JWT_ACCESS_CSRF_COOKIE_PATH = "/api"
+    JWT_ACCESS_CSRF_COOKIE_PATH = "/"
 
     # Frontend CORS configuration
     FRONTEND_URL = os.environ.get(

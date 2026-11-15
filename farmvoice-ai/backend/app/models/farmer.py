@@ -23,6 +23,7 @@ class Farmer(db.Model):
         data = {
             "farmer_id": self.farmer_id,
             "farm_name": self.farm_name,
+            "full_name": self.farm_name,
             "username": self.username,
             "email": self.email,
             "mobile_number": self.mobile_number,

@@ -1,14 +1,14 @@
 
 """FarmVoice AI - Authentication routes (Flask blueprint)."""
 
-from flask import Blueprint, jsonify, request, make_response
+from flask import Blueprint, jsonify, request, make_response, current_app
 from flask_jwt_extended import (
     jwt_required,
     get_jwt_identity,
     set_access_cookies,
     unset_jwt_cookies,
-    get_csrf_token,
 )
+import secrets
 
 from app.services.auth_service import AuthService
 from app.utils.validators import validate_registration, validate_login
@@ -62,25 +62,18 @@ def login():
 
     set_access_cookies(result, access_token)
 
-    # Obtain the CSRF token from the generated JWT.
-    csrf_token = get_csrf_token(access_token)
-
-    # Expose the CSRF token in a readable response cookie.
-    # This preserves the double-submit CSRF protection pattern.
-    from flask import current_app
-
+    # Set CSRF cookie manually for Flask-JWT-Extended 4.6.0 compatibility
     csrf_cookie_name = current_app.config.get(
-        "JWT_ACCESS_CSRF_COOKIE_NAME",
-        "csrf_access_token"
+        "JWT_CSRF_COOKIE_NAME", "csrf_access_token_cookie"
     )
-
+    csrf_token = secrets.token_hex(32)
     result.set_cookie(
         csrf_cookie_name,
         csrf_token,
         httponly=False,
         secure=current_app.config.get("JWT_COOKIE_SECURE", False),
         samesite=current_app.config.get("JWT_COOKIE_SAMESITE", "Lax"),
-        path=current_app.config.get("JWT_ACCESS_CSRF_COOKIE_PATH", "/")
+        path=current_app.config.get("JWT_CSRF_COOKIE_PATH", "/api"),
     )
 
     return result

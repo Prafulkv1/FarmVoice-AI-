@@ -4,13 +4,15 @@ Tests cover:
   1. Safe Database Table Verification (farmer_profiles & farmer_profile_crops)
   2. Unauthenticated Access Protection (401)
   3. New Farmer Registration & Empty Profile Fetch (200 with profile=None)
-  4. Profile Creation (PUT /api/profile -> 201)
-  5. Multi-crop Relational Persistence in farmer_profile_crops
-  6. Profile Fetch with Crops (GET /api/profile -> 200)
-  7. Profile Completion Calculation (GET /api/profile/completion -> 200)
-  8. Profile Update (modifying location, crops, preferences -> 200)
-  9. Cross-User Isolation (User A cannot access or modify User B's profile)
-  10. Strict Input Validation (invalid mobile, PIN, land size, crops, soil, irrigation)
+  4. Real-time Initial Completion Calculation for New Registration (3 of 15 completed = 20%)
+  5. Profile Creation (PUT /api/profile -> 201)
+  6. Multi-crop Relational Persistence in farmer_profile_crops
+  7. Profile Fetch with Crops (GET /api/profile -> 200)
+  8. Profile Completion Calculation for Complete Profile (100%, 15 of 15 completed)
+  9. Profile Update (modifying location, crops, preferences -> 200)
+  10. Farmer User Model Synchronization (farmers.farm_name and mobile updated)
+  11. Cross-User Isolation (User A cannot access or modify User B's profile)
+  12. Strict Input Validation (invalid mobile, PIN, land size, crops, soil, irrigation)
 """
 
 import sys
@@ -85,7 +87,6 @@ class FarmerProfileTestCase(unittest.TestCase):
     def test_02_new_farmer_empty_profile(self):
         """Newly registered farmer with no profile returns 200 and profile=None."""
         headers = self._auth_headers(self.farmer2_id)
-        # Clean up any existing profile for farmer 2 first
         with self.app.app_context():
             p2 = FarmerProfile.query.filter_by(user_id=self.farmer2_id).first()
             if p2:
@@ -100,10 +101,22 @@ class FarmerProfileTestCase(unittest.TestCase):
         self.assertEqual(data["farmer"]["username"], "profile_test_farmer2")
         self.assertEqual(data["email"], "goldenharvest_test@example.com")
 
-    def test_03_create_profile_success(self):
+    def test_03_new_farmer_initial_completion(self):
+        """New registered farmer has exactly 3 registration fields completed out of 15 (20%)."""
+        headers = self._auth_headers(self.farmer2_id)
+        res = self.client.get("/api/profile/completion", headers=headers)
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["total_fields"], 15)
+        self.assertEqual(data["completed_count"], 3)
+        self.assertEqual(data["remaining_count"], 12)
+        self.assertEqual(data["completion_percentage"], 20)
+        self.assertFalse(data["is_complete"])
+
+    def test_04_create_profile_success(self):
         """Farmer can create a complete profile with multiple crops (status 201)."""
         headers = self._auth_headers(self.farmer1_id)
-        # Ensure fresh start for farmer 1
         with self.app.app_context():
             p1 = FarmerProfile.query.filter_by(user_id=self.farmer1_id).first()
             if p1:
@@ -147,7 +160,7 @@ class FarmerProfileTestCase(unittest.TestCase):
             crop_names = [c.crop_name for c in crop_rows]
             self.assertCountEqual(crop_names, ["Sugarcane", "Ragi", "Rice"])
 
-    def test_04_get_created_profile(self):
+    def test_05_get_created_profile(self):
         """GET /api/profile returns the saved profile and crops correctly."""
         headers = self._auth_headers(self.farmer1_id)
         res = self.client.get("/api/profile", headers=headers)
@@ -159,19 +172,21 @@ class FarmerProfileTestCase(unittest.TestCase):
         self.assertEqual(data["profile"]["email"], "greenvalley_test@example.com")
         self.assertCountEqual(data["profile"]["main_crops"], ["Sugarcane", "Ragi", "Rice"])
 
-    def test_05_profile_completion_endpoint(self):
-        """GET /api/profile/completion calculates percentage correctly."""
+    def test_06_profile_completion_endpoint_100_percent(self):
+        """GET /api/profile/completion calculates 100% when all 15 fields are complete."""
         headers = self._auth_headers(self.farmer1_id)
         res = self.client.get("/api/profile/completion", headers=headers)
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertTrue(data["success"])
         self.assertEqual(data["completion_percentage"], 100)
+        self.assertEqual(data["completed_count"], 15)
+        self.assertEqual(data["remaining_count"], 0)
         self.assertTrue(data["is_complete"])
         self.assertEqual(len(data["missing_fields"]), 0)
 
-    def test_06_update_profile_and_crops(self):
-        """Farmer can update profile, change crops, toggle notifications."""
+    def test_07_update_profile_and_crops(self):
+        """Farmer can update profile, change crops, toggle notifications and sync user model."""
         headers = self._auth_headers(self.farmer1_id)
         payload = {
             "full_name": "Ramesh K. Gowda",
@@ -202,14 +217,19 @@ class FarmerProfileTestCase(unittest.TestCase):
         self.assertEqual(data["profile"]["notifications_enabled"], False)
         self.assertCountEqual(data["profile"]["main_crops"], ["Sugarcane", "Coconut", "Tomato"])
 
-        # Verify old crop "Ragi" was deleted and new crop "Coconut" added
+        # Verify old crop "Ragi" was removed and "Coconut" was persisted in MySQL
         with self.app.app_context():
             p = FarmerProfile.query.filter_by(user_id=self.farmer1_id).first()
             crops = [c.crop_name for c in p.crops]
             self.assertIn("Coconut", crops)
             self.assertNotIn("Ragi", crops)
 
-    def test_07_validation_errors(self):
+            # Verify farmers user model was kept in sync
+            farmer = db.session.get(Farmer, self.farmer1_id)
+            self.assertEqual(farmer.farm_name, "Ramesh K. Gowda")
+            self.assertEqual(farmer.mobile_number, "9876543211")
+
+    def test_08_validation_errors(self):
         """Validation rules must properly reject invalid inputs with 400."""
         headers = self._auth_headers(self.farmer1_id)
 
@@ -226,6 +246,8 @@ class FarmerProfileTestCase(unittest.TestCase):
             "soil_type": "Red",
             "irrigation_type": "Rainfed",
             "main_crops": ["Wheat"],
+            "preferred_language": "English",
+            "notifications_enabled": True,
         }
         res = self.client.put("/api/profile", json=bad_payload, headers=headers)
         self.assertEqual(res.status_code, 400)
@@ -259,10 +281,9 @@ class FarmerProfileTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn("soil_type", res.get_json()["errors"])
 
-    def test_08_cross_user_isolation(self):
+    def test_09_cross_user_isolation(self):
         """User identity is derived strictly from JWT, preventing cross-user edits."""
         headers2 = self._auth_headers(self.farmer2_id)
-        # Farmer 2 creates their own profile
         payload2 = {
             "full_name": "Suresh Gowda",
             "mobile_number": "9123456780",

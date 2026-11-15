@@ -25,6 +25,7 @@ class FarmerProfile(db.Model):
     village = db.Column(db.String(150), nullable=False)
     pin_code = db.Column(db.String(10), nullable=False)
     total_land_size = db.Column(db.Numeric(6, 2), nullable=False)
+    land_unit = db.Column(db.String(20), nullable=False, default="Acres")
     soil_type = db.Column(db.String(50), nullable=False)
     irrigation_type = db.Column(db.String(50), nullable=False)
     farming_experience = db.Column(db.Integer, nullable=True)
@@ -77,6 +78,7 @@ class FarmerProfile(db.Model):
                 if self.total_land_size is not None
                 else None
             ),
+            "land_unit": self.land_unit or "Acres",
             "soil_type": self.soil_type,
             "irrigation_type": self.irrigation_type,
             "farming_experience": self.farming_experience,

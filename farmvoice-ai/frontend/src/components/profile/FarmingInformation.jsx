@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Sprout, Layers, Droplets, Calendar, Plus, X, Check } from "lucide-react";
-import { SOIL_TYPES, IRRIGATION_TYPES, MAIN_CROPS } from "../../utils/profileValidation";
+import {
+  SOIL_TYPES,
+  IRRIGATION_TYPES,
+  MAIN_CROPS,
+  LAND_UNITS,
+} from "../../utils/profileValidation";
 
 export default function FarmingInformation({
   form,
@@ -9,10 +14,23 @@ export default function FarmingInformation({
   isEditing = false,
 }) {
   const [customCrop, setCustomCrop] = useState("");
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const otherInputRef = useRef(null);
+
   const selectedCrops = Array.isArray(form.main_crops) ? form.main_crops : [];
+  const currentUnit = form.land_unit || "Acres";
 
   const toggleCrop = (cropName) => {
     if (!cropName) return;
+
+    if (cropName === "Other") {
+      setShowOtherInput(true);
+      setTimeout(() => {
+        otherInputRef.current?.focus();
+      }, 50);
+      return;
+    }
+
     const exists = selectedCrops.includes(cropName);
     let updated;
     if (exists) {
@@ -28,7 +46,9 @@ export default function FarmingInformation({
     if (e) e.preventDefault();
     const trimmed = customCrop.trim();
     if (!trimmed) return;
-    if (selectedCrops.map((c) => c.toLowerCase()).includes(trimmed.toLowerCase())) {
+    if (
+      selectedCrops.map((c) => c.toLowerCase()).includes(trimmed.toLowerCase())
+    ) {
       setCustomCrop("");
       return;
     }
@@ -54,7 +74,7 @@ export default function FarmingInformation({
           <div className="section-header-text">
             <h3 className="section-title">Farming Information</h3>
             <p className="section-subtitle">
-              Land size, soil conditions, irrigation, and primary crops
+              Land size, soil conditions, irrigation method, and primary crops
             </p>
           </div>
         </div>
@@ -63,33 +83,49 @@ export default function FarmingInformation({
           <div className="view-grid">
             <div className="view-field">
               <span className="view-label">Total Land Size</span>
-              <span className="view-value">
+              <span
+                className={`view-value ${!form.total_land_size ? "empty-val" : ""}`}
+              >
                 {form.total_land_size
-                  ? `${form.total_land_size} acres`
-                  : "Not provided"}
+                  ? `${form.total_land_size} ${currentUnit}`
+                  : "Not added yet"}
               </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Soil Type</span>
-              <span className="view-value">{form.soil_type || "Not provided"}</span>
+              <span
+                className={`view-value ${!form.soil_type ? "empty-val" : ""}`}
+              >
+                {form.soil_type || "Not added yet"}
+              </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Irrigation Type</span>
-              <span className="view-value">
-                {form.irrigation_type || "Not provided"}
+              <span
+                className={`view-value ${!form.irrigation_type ? "empty-val" : ""}`}
+              >
+                {form.irrigation_type || "Not added yet"}
               </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Farming Experience</span>
-              <span className="view-value">
+              <span
+                className={`view-value ${
+                  form.farming_experience === null ||
+                  form.farming_experience === undefined ||
+                  form.farming_experience === ""
+                    ? "empty-val"
+                    : ""
+                }`}
+              >
                 {form.farming_experience !== null &&
                 form.farming_experience !== undefined &&
                 form.farming_experience !== ""
                   ? `${form.farming_experience} years`
-                  : "Not provided"}
+                  : "Not added yet"}
               </span>
             </div>
           </div>
@@ -105,7 +141,7 @@ export default function FarmingInformation({
                   </span>
                 ))
               ) : (
-                <span className="empty-text">No crops selected yet</span>
+                <span className="empty-text">Not added yet</span>
               )}
             </div>
           </div>
@@ -123,39 +159,62 @@ export default function FarmingInformation({
         <div className="section-header-text">
           <h3 className="section-title">Farming Information</h3>
           <p className="section-subtitle">
-            Configure your farm size, soil type, irrigation source, and current crops.
+            Configure your farm size, measurement unit, soil type, irrigation source, and current crops.
           </p>
         </div>
       </div>
 
       <div className="section-body">
         <div className="form-grid">
+          {/* Total Land Size and Unit */}
           <div className="form-group">
             <label className="form-label" htmlFor="total_land_size">
-              Total Land Size (in acres) <span className="req-star">*</span>
+              Total Land Size <span className="req-star">*</span>
             </label>
-            <div className="input-icon-wrapper">
-              <Layers size={18} className="input-icon" />
-              <input
-                id="total_land_size"
-                name="total_land_size"
-                type="number"
-                step="0.01"
-                min="0.01"
-                max="9999.99"
-                className={`form-control ${errors.total_land_size ? "is-invalid" : ""}`}
-                placeholder="e.g. 4.5"
-                value={form.total_land_size ?? ""}
-                onChange={(e) => onChange("total_land_size", e.target.value)}
-              />
+            <div className="land-size-input-group">
+              <div className="input-icon-wrapper land-size-number">
+                <Layers size={18} className="input-icon" />
+                <input
+                  id="total_land_size"
+                  name="total_land_size"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="9999.99"
+                  className={`form-control ${
+                    errors.total_land_size ? "is-invalid" : ""
+                  }`}
+                  placeholder="e.g. 4.5"
+                  value={form.total_land_size ?? ""}
+                  onChange={(e) => onChange("total_land_size", e.target.value)}
+                />
+              </div>
+
+              <select
+                id="land_unit"
+                name="land_unit"
+                className="form-control land-unit-select"
+                value={currentUnit}
+                onChange={(e) => onChange("land_unit", e.target.value)}
+                title="Select Land Unit"
+              >
+                {LAND_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
+                  </option>
+                ))}
+              </select>
             </div>
             {errors.total_land_size ? (
               <span className="field-error">{errors.total_land_size}</span>
             ) : (
-              <span className="field-hint">Decimal values accepted (e.g. 2.75)</span>
+              <span className="field-hint">
+                Enter land size and choose Acres or Hectares
+              </span>
             )}
           </div>
 
+          {/* Soil Type */}
           <div className="form-group">
             <label className="form-label" htmlFor="soil_type">
               Soil Type <span className="req-star">*</span>
@@ -165,7 +224,9 @@ export default function FarmingInformation({
               <select
                 id="soil_type"
                 name="soil_type"
-                className={`form-control ${errors.soil_type ? "is-invalid" : ""}`}
+                className={`form-control ${
+                  errors.soil_type ? "is-invalid" : ""
+                }`}
                 value={form.soil_type || ""}
                 onChange={(e) => onChange("soil_type", e.target.value)}
               >
@@ -182,6 +243,7 @@ export default function FarmingInformation({
             )}
           </div>
 
+          {/* Irrigation Type */}
           <div className="form-group">
             <label className="form-label" htmlFor="irrigation_type">
               Irrigation Type <span className="req-star">*</span>
@@ -191,7 +253,9 @@ export default function FarmingInformation({
               <select
                 id="irrigation_type"
                 name="irrigation_type"
-                className={`form-control ${errors.irrigation_type ? "is-invalid" : ""}`}
+                className={`form-control ${
+                  errors.irrigation_type ? "is-invalid" : ""
+                }`}
                 value={form.irrigation_type || ""}
                 onChange={(e) => onChange("irrigation_type", e.target.value)}
               >
@@ -208,9 +272,10 @@ export default function FarmingInformation({
             )}
           </div>
 
+          {/* Farming Experience */}
           <div className="form-group">
             <label className="form-label" htmlFor="farming_experience">
-              Farming Experience (years) <span className="optional-tag">(Optional)</span>
+              Farming Experience (years) <span className="req-star">*</span>
             </label>
             <div className="input-icon-wrapper">
               <Calendar size={18} className="input-icon" />
@@ -220,7 +285,9 @@ export default function FarmingInformation({
                 type="number"
                 min="0"
                 max="100"
-                className={`form-control ${errors.farming_experience ? "is-invalid" : ""}`}
+                className={`form-control ${
+                  errors.farming_experience ? "is-invalid" : ""
+                }`}
                 placeholder="e.g. 12"
                 value={form.farming_experience ?? ""}
                 onChange={(e) => onChange("farming_experience", e.target.value)}
@@ -241,12 +308,12 @@ export default function FarmingInformation({
             </span>
           </label>
           <p className="field-hint">
-            Click on common crops to select or deselect. You can also type custom crops below.
+            Select one or more crops cultivated on your land. Click &quot;Other&quot; to specify any custom crop or category.
           </p>
 
           <div className="crop-selector-pills">
             {MAIN_CROPS.map((crop) => {
-              const active = selectedCrops.includes(crop);
+              const active = crop === "Other" ? showOtherInput : selectedCrops.includes(crop);
               return (
                 <button
                   key={crop}
@@ -261,14 +328,15 @@ export default function FarmingInformation({
             })}
           </div>
 
-          {/* Add custom crop */}
+          {/* Add custom or other crop */}
           <div className="custom-crop-row">
             <div className="input-icon-wrapper custom-crop-input">
               <Sprout size={18} className="input-icon" />
               <input
+                ref={otherInputRef}
                 type="text"
                 className="form-control"
-                placeholder="Add other crop (e.g. Coffee, Ginger)"
+                placeholder="Specify crop or category (e.g. Coffee, Ginger, Mustard)"
                 value={customCrop}
                 onChange={(e) => setCustomCrop(e.target.value)}
                 onKeyDown={(e) => {
@@ -293,7 +361,7 @@ export default function FarmingInformation({
           {/* Currently selected crops tags with remove option */}
           {selectedCrops.length > 0 && (
             <div className="active-crops-chips">
-              <span className="chips-title">Selected:</span>
+              <span className="chips-title">Selected Crops:</span>
               {selectedCrops.map((crop) => (
                 <span key={crop} className="active-crop-chip">
                   <span>{crop}</span>

@@ -8,11 +8,17 @@ PIN_CODE_REGEX = re.compile(r"^\d{6}$")
 
 SOIL_TYPES = [
     "Alluvial",
+    "Black Soil",
     "Black",
+    "Red Soil",
     "Red",
+    "Laterite Soil",
     "Laterite",
+    "Desert Soil",
     "Desert",
+    "Mountain Soil",
     "Mountain",
+    "Peaty Soil",
     "Peaty",
     "Other",
 ]
@@ -22,12 +28,15 @@ IRRIGATION_TYPES = [
     "Canal",
     "Tubewell",
     "Tank",
+    "Drip Irrigation",
     "Drip",
+    "Sprinkler Irrigation",
     "Sprinkler",
     "Other",
 ]
 
 PREFERRED_LANGUAGES = [
+    "English",
     "Kannada",
     "Hindi",
     "Telugu",
@@ -36,7 +45,11 @@ PREFERRED_LANGUAGES = [
     "Marathi",
     "Bengali",
     "Punjabi",
-    "English",
+]
+
+LAND_UNITS = [
+    "Acres",
+    "Hectares",
 ]
 
 MAIN_CROPS = [
@@ -128,7 +141,7 @@ def validate_profile(data):
                 )
             elif land_size > 9999.99:
                 errors["total_land_size"] = (
-                    "Land size cannot exceed 9999.99 acres."
+                    "Land size cannot exceed 9999.99."
                 )
             elif land_size.as_tuple().exponent < -2:
                 errors["total_land_size"] = (
@@ -136,8 +149,13 @@ def validate_profile(data):
                 )
         except (InvalidOperation, ValueError, TypeError):
             errors["total_land_size"] = (
-                "Please enter a valid land size in acres."
+                "Please enter a valid land size."
             )
+
+    # Land measurement unit: default to 'Acres' if not supplied
+    land_unit = _clean_string(data.get("land_unit")) or "Acres"
+    if land_unit not in LAND_UNITS:
+        errors["land_unit"] = "Land unit must be Acres or Hectares."
 
     # Soil type
     soil_type = _clean_string(data.get("soil_type"))
@@ -228,6 +246,7 @@ def validate_profile(data):
         "village": village,
         "pin_code": pin_code,
         "total_land_size": land_size,
+        "land_unit": land_unit,
         "soil_type": soil_type,
         "irrigation_type": irrigation_type,
         "farming_experience": farming_experience,

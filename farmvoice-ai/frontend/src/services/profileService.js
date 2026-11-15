@@ -11,8 +11,17 @@ export const profileService = {
   /** Fetch the authenticated farmer's profile. */
   getProfile: () => api.get("/api/profile"),
 
-  /** Create or update the authenticated farmer's profile. */
-  saveProfile: (payload) => api.put("/api/profile", payload),
+  /** Create a new profile for the authenticated farmer (POST). */
+  createProfile: (payload) => api.post("/api/profile", payload),
+
+  /** Update an existing profile for the authenticated farmer (PUT). */
+  updateProfile: (payload) => api.put("/api/profile", payload),
+
+  /** Create or update farmer profile based on isNew flag. */
+  saveProfile: (payload, isNew = false) =>
+    isNew
+      ? api.post("/api/profile", payload)
+      : api.put("/api/profile", payload),
 
   /** Get profile completion percentage and missing fields. */
   getCompletion: () => api.get("/api/profile/completion"),

@@ -25,27 +25,37 @@ export default function LocationInformation({
           <div className="view-grid location-grid">
             <div className="view-field">
               <span className="view-label">State</span>
-              <span className="view-value">{form.state || "Not provided"}</span>
+              <span className={`view-value ${!form.state ? "empty-val" : ""}`}>
+                {form.state || "Not added yet"}
+              </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">District</span>
-              <span className="view-value">{form.district || "Not provided"}</span>
+              <span className={`view-value ${!form.district ? "empty-val" : ""}`}>
+                {form.district || "Not added yet"}
+              </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Taluk</span>
-              <span className="view-value">{form.taluk || "Not provided"}</span>
+              <span className={`view-value ${!form.taluk ? "empty-val" : ""}`}>
+                {form.taluk || "Not added yet"}
+              </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Village</span>
-              <span className="view-value">{form.village || "Not provided"}</span>
+              <span className={`view-value ${!form.village ? "empty-val" : ""}`}>
+                {form.village || "Not added yet"}
+              </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">PIN Code</span>
-              <span className="view-value">{form.pin_code || "Not provided"}</span>
+              <span className={`view-value ${!form.pin_code ? "empty-val" : ""}`}>
+                {form.pin_code || "Not added yet"}
+              </span>
             </div>
           </div>
         </div>

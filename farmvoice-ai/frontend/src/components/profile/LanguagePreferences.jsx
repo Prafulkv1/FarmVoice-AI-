@@ -7,7 +7,8 @@ export default function LanguagePreferences({
   errors = {},
   isEditing = false,
 }) {
-  const notifEnabled = form.notifications_enabled !== false;
+  const hasNotif = typeof form.notifications_enabled === "boolean";
+  const notifEnabled = form.notifications_enabled === true;
 
   if (!isEditing) {
     return (
@@ -28,15 +29,17 @@ export default function LanguagePreferences({
           <div className="view-grid">
             <div className="view-field">
               <span className="view-label">Preferred Language</span>
-              <span className="view-value">
-                {form.preferred_language || "English"}
+              <span className={`view-value ${!form.preferred_language ? "empty-val" : ""}`}>
+                {form.preferred_language || "Not added yet"}
               </span>
             </div>
 
             <div className="view-field">
               <span className="view-label">Notifications</span>
               <div className="status-badge-wrapper">
-                {notifEnabled ? (
+                {!hasNotif ? (
+                  <span className="badge badge-secondary">Not configured yet</span>
+                ) : notifEnabled ? (
                   <span className="badge badge-success">
                     <Bell size={13} /> Enabled
                   </span>
@@ -79,9 +82,10 @@ export default function LanguagePreferences({
                 id="preferred_language"
                 name="preferred_language"
                 className={`form-control ${errors.preferred_language ? "is-invalid" : ""}`}
-                value={form.preferred_language || "English"}
+                value={form.preferred_language || ""}
                 onChange={(e) => onChange("preferred_language", e.target.value)}
               >
+                <option value="">-- Select Preferred Language --</option>
                 {PREFERRED_LANGUAGES.map((lang) => (
                   <option key={lang} value={lang}>
                     {lang}
@@ -100,34 +104,44 @@ export default function LanguagePreferences({
 
           <div className="form-group">
             <label className="form-label">
-              Notification Alerts <span className="req-star">*</span>
+              Notification Preference <span className="req-star">*</span>
             </label>
             <div className="toggle-button-group">
               <button
                 type="button"
-                className={`toggle-option ${notifEnabled ? "active" : ""}`}
+                className={`toggle-option ${hasNotif && notifEnabled ? "active" : ""}`}
                 onClick={() => onChange("notifications_enabled", true)}
               >
                 <Bell size={16} />
                 <span>Enable Notifications</span>
-                {notifEnabled && <CheckCircle size={15} className="toggle-check" />}
+                {hasNotif && notifEnabled && (
+                  <CheckCircle size={15} className="toggle-check" />
+                )}
               </button>
 
               <button
                 type="button"
-                className={`toggle-option ${!notifEnabled ? "active" : ""}`}
+                className={`toggle-option ${hasNotif && !notifEnabled ? "active" : ""}`}
                 onClick={() => onChange("notifications_enabled", false)}
               >
                 <BellOff size={16} />
                 <span>Disable Notifications</span>
-                {!notifEnabled && <CheckCircle size={15} className="toggle-check" />}
+                {hasNotif && !notifEnabled && (
+                  <CheckCircle size={15} className="toggle-check" />
+                )}
               </button>
             </div>
-            <span className="field-hint">
-              {notifEnabled
-                ? "You will receive periodic weather forecasts, mandi price updates, and advisory."
-                : "All automatic alerts and reminders are currently muted."}
-            </span>
+            {errors.notifications_enabled ? (
+              <span className="field-error">{errors.notifications_enabled}</span>
+            ) : (
+              <span className="field-hint">
+                {hasNotif
+                  ? notifEnabled
+                    ? "You will receive periodic weather forecasts, mandi price updates, and advisory."
+                    : "All automatic alerts and reminders are currently muted."
+                  : "Please select whether you wish to receive notifications."}
+              </span>
+            )}
           </div>
         </div>
       </div>

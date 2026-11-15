@@ -10,7 +10,8 @@ import {
   Sprout,
   Mail,
   ChevronRight,
-  Info,
+  ListChecks,
+  Eye,
 } from "lucide-react";
 
 import { useAuth } from "../components/AuthProvider";
@@ -24,6 +25,8 @@ import PersonalInformation from "../components/profile/PersonalInformation";
 import LocationInformation from "../components/profile/LocationInformation";
 import FarmingInformation from "../components/profile/FarmingInformation";
 import LanguagePreferences from "../components/profile/LanguagePreferences";
+import ProfileReview from "../components/profile/ProfileReview";
+import ProfileSuccess from "../components/profile/ProfileSuccess";
 
 import "../styles/profile.css";
 
@@ -37,38 +40,52 @@ const defaultFormState = {
   village: "",
   pin_code: "",
   total_land_size: "",
+  land_unit: "Acres",
   soil_type: "",
   irrigation_type: "",
   farming_experience: "",
-  preferred_language: "English",
-  notifications_enabled: true,
+  preferred_language: "",
+  notifications_enabled: null,
   main_crops: [],
 };
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { user, isAuthenticated, checking, updateUser } = useAuth();
 
-  const { user, isAuthenticated, checking } = useAuth();
-
+  const [savedProfile, setSavedProfile] = useState(defaultFormState);
   const [form, setForm] = useState(defaultFormState);
-  const [originalForm, setOriginalForm] = useState(defaultFormState);
   const [isEditing, setIsEditing] = useState(false);
   const [isNewProfile, setIsNewProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-
   const [successMessage, setSuccessMessage] = useState("");
   const [serverError, setServerError] = useState("");
+  const [showMissingList, setShowMissingList] = useState(false);
 
-  // Calculate dynamic profile completion percentage
+  // Review before saving modal state
+  const [showReview, setShowReview] = useState(false);
+
+  // Success confirmation screen state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+
+  // Real-time profile completion percentage
+  const currentFormForScore = isEditing ? form : savedProfile;
   const completion = useMemo(() => {
-    return calculateCompletion(form);
-  }, [form]);
+    return calculateCompletion(currentFormForScore);
+  }, [currentFormForScore]);
 
   // Extract avatar initials
   const initials = useMemo(() => {
-    const name = (form.full_name || user?.farm_name || user?.username || "Farmer").trim();
+    const name = (
+      form.full_name ||
+      user?.farm_name ||
+      user?.full_name ||
+      user?.username ||
+      "Farmer"
+    ).trim();
     const parts = name.split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -85,12 +102,14 @@ export default function Profile() {
       const data = res.data;
 
       if (data && data.profile) {
-        // Existing profile retrieved
+        // Existing profile retrieved from MySQL
         const p = data.profile;
         const normalized = {
-          full_name: p.full_name || user?.farm_name || user?.username || "",
-          email: p.email || data.email || user?.email || "",
-          mobile_number: p.mobile_number || user?.mobile_number || "",
+          farmer_id: p.user_id || data.farmer?.farmer_id || user?.farmer_id,
+          user_id: p.user_id || data.farmer?.farmer_id || user?.farmer_id,
+          full_name: p.full_name || data.farmer?.farm_name || "",
+          email: p.email || data.farmer?.email || "",
+          mobile_number: p.mobile_number || data.farmer?.mobile_number || "",
           state: p.state || "",
           district: p.district || "",
           taluk: p.taluk || "",
@@ -100,30 +119,55 @@ export default function Profile() {
             p.total_land_size !== null && p.total_land_size !== undefined
               ? String(p.total_land_size)
               : "",
+          land_unit: p.land_unit || "Acres",
           soil_type: p.soil_type || "",
           irrigation_type: p.irrigation_type || "",
           farming_experience:
             p.farming_experience !== null && p.farming_experience !== undefined
               ? String(p.farming_experience)
               : "",
-          preferred_language: p.preferred_language || "English",
-          notifications_enabled: p.notifications_enabled !== false,
+          preferred_language: p.preferred_language || "",
+          notifications_enabled:
+            typeof p.notifications_enabled === "boolean"
+              ? p.notifications_enabled
+              : null,
           main_crops: Array.isArray(p.main_crops) ? p.main_crops : [],
+          created_at: p.created_at,
+          updated_at: p.updated_at,
         };
+        setSavedProfile(normalized);
         setForm(normalized);
-        setOriginalForm(normalized);
         setIsNewProfile(false);
+        setIsEditing(false);
+        setLastSavedAt(p.updated_at || p.created_at || null);
       } else {
-        // No profile created yet for this farmer account
+        // No profile exists yet - populate ONLY real registered credentials
+        const regFarmer = data?.farmer || user || {};
         const initial = {
-          ...defaultFormState,
-          full_name: user?.farm_name || user?.username || "",
-          email: user?.email || data?.email || "",
-          mobile_number: user?.mobile_number || "",
+          farmer_id: regFarmer.farmer_id || regFarmer.user_id || "",
+          user_id: regFarmer.farmer_id || regFarmer.user_id || "",
+          full_name: regFarmer.farm_name || regFarmer.full_name || "",
+          email: regFarmer.email || data?.email || "",
+          mobile_number: regFarmer.mobile_number || "",
+          state: "",
+          district: "",
+          taluk: "",
+          village: "",
+          pin_code: "",
+          total_land_size: "",
+          land_unit: "Acres",
+          soil_type: "",
+          irrigation_type: "",
+          farming_experience: "",
+          preferred_language: "",
+          notifications_enabled: null,
+          main_crops: [],
         };
+        setSavedProfile(initial);
         setForm(initial);
-        setOriginalForm(initial);
         setIsNewProfile(true);
+        setIsEditing(false);
+        setLastSavedAt(null);
       }
     } catch (err) {
       console.error("Failed to load profile:", err);
@@ -132,15 +176,21 @@ export default function Profile() {
         return;
       }
       if (err.response?.status === 403) {
-        setServerError("Access denied. You do not have permission to view this profile.");
+        setServerError(
+          "Access denied. You do not have permission to view this profile."
+        );
         return;
       }
       if (err.response?.status === 500) {
-        setServerError("Server encountered an error while loading your profile. Please retry.");
+        setServerError(
+          "Server encountered an error while loading your profile. Please retry."
+        );
         return;
       }
       if (!err.response) {
-        setServerError("Unable to connect to the FarmVoice AI server. Please check backend connection.");
+        setServerError(
+          "Unable to connect to the FarmVoice AI server. Please check backend connection."
+        );
         return;
       }
       setServerError(err.response?.data?.message || "Failed to load profile.");
@@ -149,7 +199,6 @@ export default function Profile() {
     }
   }, [user, navigate]);
 
-  // Authentication and initial profile loading
   useEffect(() => {
     if (!checking) {
       if (!isAuthenticated) {
@@ -180,41 +229,71 @@ export default function Profile() {
 
   const handleStartEdit = () => {
     setIsEditing(true);
+    setShowSuccess(false);
     setErrors({});
     setSuccessMessage("");
     setServerError("");
   };
 
   const handleCancelEdit = () => {
-    setForm(originalForm);
+    setForm(savedProfile);
     setErrors({});
     setSuccessMessage("");
     setServerError("");
     setIsEditing(false);
+    setShowSuccess(false);
   };
 
-  const handleSaveProfile = async (e) => {
+  // Step 1: Pre-validation & opening the Review Confirmation Modal
+  const handleOpenReview = (e) => {
     if (e) e.preventDefault();
-
     setSuccessMessage("");
     setServerError("");
 
-    // Frontend validation
+    // Validate using the strict 15-field validation rules
     const valErrors = validateProfile(form);
     if (Object.keys(valErrors).length > 0) {
       setErrors(valErrors);
-      setServerError("Please correct the highlighted fields before saving your profile.");
+      setServerError(
+        "Please correct the highlighted fields before reviewing your profile."
+      );
       window.scrollTo({ top: 120, behavior: "smooth" });
       return;
     }
 
+    // Clear any previous error and open the review screen
+    setErrors({});
+    setShowReview(true);
+  };
+
+  // Step 2: Return from review modal back to editing
+  const handleEditFromReview = () => {
+    setShowReview(false);
+  };
+
+  // Step 3: Cancel from review modal without saving
+  const handleCancelReview = () => {
+    setShowReview(false);
+  };
+
+  // Step 4: Confirm and submit to MySQL via Flask backend
+  const handleConfirmAndSave = async () => {
+    if (saving) return;
+
     try {
       setSaving(true);
-      const res = await profileService.saveProfile(form);
+      setServerError("");
+
+      // Choose POST for initial creation, PUT for updating
+      const res = isNewProfile
+        ? await profileService.createProfile(form)
+        : await profileService.updateProfile(form);
 
       if (res.data?.success) {
         const saved = res.data.profile;
         const normalized = {
+          farmer_id: saved.user_id || form.farmer_id,
+          user_id: saved.user_id || form.user_id,
           full_name: saved.full_name || form.full_name,
           email: saved.email || form.email,
           mobile_number: saved.mobile_number || form.mobile_number,
@@ -224,30 +303,53 @@ export default function Profile() {
           village: saved.village || "",
           pin_code: saved.pin_code || "",
           total_land_size:
-            saved.total_land_size !== null && saved.total_land_size !== undefined
+            saved.total_land_size !== null &&
+            saved.total_land_size !== undefined
               ? String(saved.total_land_size)
               : "",
+          land_unit: saved.land_unit || form.land_unit || "Acres",
           soil_type: saved.soil_type || "",
           irrigation_type: saved.irrigation_type || "",
           farming_experience:
-            saved.farming_experience !== null && saved.farming_experience !== undefined
+            saved.farming_experience !== null &&
+            saved.farming_experience !== undefined
               ? String(saved.farming_experience)
               : "",
-          preferred_language: saved.preferred_language || "English",
-          notifications_enabled: saved.notifications_enabled !== false,
+          preferred_language: saved.preferred_language || "",
+          notifications_enabled:
+            typeof saved.notifications_enabled === "boolean"
+              ? saved.notifications_enabled
+              : null,
           main_crops: Array.isArray(saved.main_crops) ? saved.main_crops : [],
+          created_at: saved.created_at,
+          updated_at: saved.updated_at,
         };
 
+        setSavedProfile(normalized);
         setForm(normalized);
-        setOriginalForm(normalized);
         setIsEditing(false);
         setIsNewProfile(false);
         setErrors({});
-        setSuccessMessage(res.data.message || "Profile saved successfully!");
+        setShowReview(false);
+        setShowSuccess(true);
+        setLastSavedAt(
+          saved.updated_at || saved.created_at || new Date().toISOString()
+        );
+        setSuccessMessage(
+          res.data.message || "Your farmer profile has been saved successfully!"
+        );
+
+        // Synchronize in-memory auth context so top nav and headers reflect updated farmer info
+        if (updateUser && res.data.farmer) {
+          updateUser(res.data.farmer);
+        }
+
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch (err) {
       console.error("Save profile error:", err);
+      setShowReview(false); // Close modal so user sees error and form fields
+
       if (err.response?.status === 401) {
         navigate("/login");
         return;
@@ -258,14 +360,26 @@ export default function Profile() {
           setErrors(beErrors);
         }
         setServerError(
-          err.response?.data?.message || "Validation failed. Please review your details."
+          err.response?.data?.message ||
+            "Validation failed. Please review your details and correct any errors."
         );
+      } else if (err.response?.status === 409) {
+        setServerError(
+          "Profile record already exists. Switched to update mode."
+        );
+        setIsNewProfile(false);
       } else if (err.response?.status === 500) {
-        setServerError("Server error occurred while saving profile. Please try again.");
+        setServerError(
+          "Database error occurred while saving your profile. Please check MySQL server and try again."
+        );
       } else if (!err.response) {
-        setServerError("Network error: unable to reach the server. Please check backend connection.");
+        setServerError(
+          "Network error: unable to reach the server. Please check your backend connection."
+        );
       } else {
-        setServerError(err.response?.data?.message || "Failed to save profile.");
+        setServerError(
+          err.response?.data?.message || "Failed to save profile."
+        );
       }
       window.scrollTo({ top: 120, behavior: "smooth" });
     } finally {
@@ -273,7 +387,18 @@ export default function Profile() {
     }
   };
 
-  // Authentication loading
+  const handleViewProfileFromSuccess = () => {
+    setShowSuccess(false);
+    setIsEditing(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleEditProfileFromSuccess = () => {
+    setShowSuccess(false);
+    setIsEditing(true);
+    window.scrollTo({ top: 100, behavior: "smooth" });
+  };
+
   if (checking || loading) {
     return (
       <div className="profile-container">
@@ -288,8 +413,9 @@ export default function Profile() {
 
   const farmerDisplayName =
     form.full_name || user?.farm_name || user?.username || "Farmer";
+  const activeFarmerId =
+    form.farmer_id || form.user_id || user?.farmer_id || "N/A";
 
-  // Profile loading
   return (
     <div className="profile-container">
       {/* Hero Header */}
@@ -298,7 +424,10 @@ export default function Profile() {
           <div className="profile-hero-main">
             <div className="profile-hero-avatar">{initials}</div>
             <div className="profile-hero-details">
-              <h1>{farmerDisplayName}</h1>
+              <div className="hero-name-row">
+                <h1>{farmerDisplayName}</h1>
+                <span className="hero-farmer-id">ID: #{activeFarmerId}</span>
+              </div>
               <p className="profile-hero-email">
                 <Mail size={15} />
                 <span>{form.email || user?.email || "No email available"}</span>
@@ -320,11 +449,40 @@ export default function Profile() {
                   style={{ width: `${completion.percentage}%` }}
                 />
               </div>
-              <p className="completion-subtext">
-                {completion.isComplete
-                  ? "All required profile sections are complete!"
-                  : `${completion.missing.length} required field(s) pending`}
-              </p>
+              <div className="completion-subtext">
+                <span>
+                  {completion.isComplete
+                    ? "Profile is 100% complete!"
+                    : `${completion.completedCount} of ${completion.totalFields} completed`}
+                </span>
+                {!completion.isComplete && (
+                  <span
+                    className="completion-count-badge"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setShowMissingList(!showMissingList)}
+                    title="Click to toggle missing fields list"
+                  >
+                    <ListChecks size={12} />
+                    {completion.remainingCount} pending
+                  </span>
+                )}
+              </div>
+
+              {!completion.isComplete && showMissingList && (
+                <div className="missing-fields-box">
+                  <div className="missing-fields-title">
+                    <ListChecks size={12} />
+                    <span>Pending fields to reach 100%:</span>
+                  </div>
+                  <div className="missing-pills-wrap">
+                    {completion.missingFields.map((field) => (
+                      <span key={field} className="missing-pill">
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="profile-hero-actions">
@@ -335,7 +493,7 @@ export default function Profile() {
                   onClick={handleStartEdit}
                 >
                   <Edit3 size={17} />
-                  <span>Edit Profile</span>
+                  <span>{isNewProfile ? "Complete Profile" : "Edit Profile"}</span>
                 </button>
               ) : (
                 <>
@@ -351,20 +509,11 @@ export default function Profile() {
                   <button
                     type="button"
                     className="btn-hero-save"
-                    onClick={handleSaveProfile}
+                    onClick={handleOpenReview}
                     disabled={saving}
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 size={17} className="spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save size={17} />
-                        <span>Save Changes</span>
-                      </>
-                    )}
+                    <Save size={17} />
+                    <span>{isNewProfile ? "Save Profile" : "Save Changes"}</span>
                   </button>
                 </>
               )}
@@ -374,7 +523,7 @@ export default function Profile() {
       </div>
 
       {/* Feedback Alert Banners */}
-      {successMessage && (
+      {successMessage && !showSuccess && (
         <div className="profile-alert success">
           <CheckCircle2 size={20} className="profile-alert-icon" />
           <div className="profile-alert-content">
@@ -408,17 +557,30 @@ export default function Profile() {
         </div>
       )}
 
+      {/* Save Confirmation Screen (Section 5) */}
+      {showSuccess && (
+        <ProfileSuccess
+          profile={savedProfile}
+          farmer={user}
+          completion={completion}
+          lastSavedAt={lastSavedAt}
+          onViewProfile={handleViewProfileFromSuccess}
+          onEditProfile={handleEditProfileFromSuccess}
+        />
+      )}
+
       {/* Empty Profile State for Newly Registered Farmers */}
-      {isNewProfile && !isEditing && (
+      {isNewProfile && !isEditing && !showSuccess && (
         <div className="welcome-empty-banner">
           <div className="welcome-icon-bubble">
             <Sprout size={32} />
           </div>
           <h2>Welcome to FarmVoice AI, {farmerDisplayName}!</h2>
           <p>
-            You haven't set up your farming details yet. Completing your profile
-            enables customized AI voice assistance in your native language, accurate
-            weather updates for your village, and tailored crop management advice.
+            You haven&apos;t set up your farming details yet. Completing your profile
+            enables customized AI voice assistance in your native language,
+            accurate weather updates for your village, and tailored crop
+            management advice.
           </p>
           <button
             type="button"
@@ -431,74 +593,81 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Profile Form / Sections */}
-      <form onSubmit={handleSaveProfile} noValidate>
-        <div className="profile-sections-wrapper">
-          {/* Section A: Personal Information */}
-          <PersonalInformation
-            form={form}
-            onChange={handleFieldChange}
-            errors={errors}
-            isEditing={isEditing}
-          />
+      {/* Profile Sections (Form / View) - rendered when not showing success screen */}
+      {!showSuccess && (
+        <form onSubmit={handleOpenReview} noValidate>
+          <div className="profile-sections-wrapper">
+            {/* Section A: Personal Information */}
+            <PersonalInformation
+              form={isEditing ? form : savedProfile}
+              onChange={handleFieldChange}
+              errors={errors}
+              isEditing={isEditing}
+              farmerId={activeFarmerId}
+            />
 
-          {/* Section B: Location Information */}
-          <LocationInformation
-            form={form}
-            onChange={handleFieldChange}
-            errors={errors}
-            isEditing={isEditing}
-          />
+            {/* Section B: Location Information */}
+            <LocationInformation
+              form={isEditing ? form : savedProfile}
+              onChange={handleFieldChange}
+              errors={errors}
+              isEditing={isEditing}
+            />
 
-          {/* Section C: Farming Information */}
-          <FarmingInformation
-            form={form}
-            onChange={handleFieldChange}
-            errors={errors}
-            isEditing={isEditing}
-          />
+            {/* Section C: Farming Information */}
+            <FarmingInformation
+              form={isEditing ? form : savedProfile}
+              onChange={handleFieldChange}
+              errors={errors}
+              isEditing={isEditing}
+            />
 
-          {/* Section D: Language & Notification Preferences */}
-          <LanguagePreferences
-            form={form}
-            onChange={handleFieldChange}
-            errors={errors}
-            isEditing={isEditing}
-          />
+            {/* Section D: Language & Notification Preferences */}
+            <LanguagePreferences
+              form={isEditing ? form : savedProfile}
+              onChange={handleFieldChange}
+              errors={errors}
+              isEditing={isEditing}
+            />
 
-          {/* Bottom Action Bar in Edit Mode */}
-          {isEditing && (
-            <div className="profile-bottom-actions">
-              <button
-                type="button"
-                className="btn-bottom-cancel"
-                onClick={handleCancelEdit}
-                disabled={saving}
-              >
-                <X size={16} />
-                <span>Cancel</span>
-              </button>
-              <button
-                type="submit"
-                className="btn-bottom-save"
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 size={18} className="spin" />
-                    <span>Saving Profile...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    <span>Save Changes</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-      </form>
+            {/* Bottom Action Bar in Edit Mode */}
+            {isEditing && (
+              <div className="profile-bottom-actions">
+                <button
+                  type="button"
+                  className="btn-bottom-cancel"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                >
+                  <X size={16} />
+                  <span>Cancel</span>
+                </button>
+                <button
+                  type="submit"
+                  className="btn-bottom-save"
+                  disabled={saving}
+                >
+                  <Save size={18} />
+                  <span>{isNewProfile ? "Save Profile" : "Save Changes"}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </form>
+      )}
+
+      {/* Review Confirmation Modal (Section 4) */}
+      {showReview && (
+        <ProfileReview
+          form={form}
+          farmerId={activeFarmerId}
+          onConfirm={handleConfirmAndSave}
+          onEdit={handleEditFromReview}
+          onCancel={handleCancelReview}
+          saving={saving}
+          isNew={isNewProfile}
+        />
+      )}
     </div>
   );
 }

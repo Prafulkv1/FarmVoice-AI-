@@ -47,8 +47,12 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
   };
 
+  const updateUser = (farmer) => {
+    setUser((prev) => ({ ...prev, ...farmer }));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, checking, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, checking, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
