@@ -62,6 +62,17 @@ export const aiService = {
   },
 
   /**
+   * Fetch authenticated audio Blob for a message.
+   * @param {number} messageId
+   */
+  async getMessageAudio(messageId) {
+    const response = await api.get(`/api/ai/messages/${messageId}/audio`, {
+      responseType: "blob",
+    });
+    return response.data;
+  },
+
+  /**
    * Get supported dialects grouped by language.
    */
   async getDialects() {

@@ -463,15 +463,18 @@ class AIAssistantTestSuite(unittest.TestCase):
         self.assertIn("ಕೀಟ ನಿಯಂತ್ರಣ ಸಲಹೆ", cleaned)
         self.assertIn("ಬೇವಿನ ಎಣ್ಣೆ 5ml", cleaned)
 
-        # TTS Service with missing key -> returns graceful fallback
+        # TTS Service with missing Sarvam key -> generates audio via server fallback or browser fallback
         with patch.dict(self.app.config, {"SARVAM_API_KEY": ""}):
             tts_result, tts_status = TextToSpeechService.synthesize_speech(
                 text="ನಮಸ್ಕಾರ ರೈತ ಬಾಂಧವರೇ",
                 language_code="kn",
             )
             self.assertEqual(tts_status, 200)
-            self.assertFalse(tts_result["success"])
-            self.assertTrue(tts_result.get("fallback_to_browser"))
+            if tts_result["success"]:
+                self.assertIn("audio_base64", tts_result)
+                self.assertIn("mime_type", tts_result)
+            else:
+                self.assertTrue(tts_result.get("fallback_to_browser"))
 
             # STT Service with missing key -> returns graceful fallback
             stt_result, stt_status = SpeechToTextService.transcribe_audio(
@@ -544,7 +547,7 @@ class AIAssistantTestSuite(unittest.TestCase):
         )
         self.assertEqual(tts_bad.status_code, 400)
 
-        # TTS: with text and unconfigured Sarvam key returns 200 with fallback flag
+        # TTS: with text returns 200 with valid audio or fallback
         tts_ok = self.client.post(
             "/api/ai/tts",
             json={"text": "ನಮಸ್ಕಾರ ರೈತ ಬಾಂಧವರೇ", "language": "kn"},
@@ -552,7 +555,7 @@ class AIAssistantTestSuite(unittest.TestCase):
         )
         self.assertEqual(tts_ok.status_code, 200)
         tts_data = tts_ok.get_json()
-        self.assertTrue(tts_data.get("fallback_to_browser", False))
+        self.assertTrue(tts_data.get("success") or tts_data.get("fallback_to_browser", False))
 
         # STT: missing audio file returns 400
         stt_bad = self.client.post(
@@ -621,6 +624,30 @@ class AIAssistantTestSuite(unittest.TestCase):
                 conv = db.session.get(AIConversation, conv_id)
                 self.assertIsNotNone(conv)
                 self.assertEqual(conv.dialect, "north_karnataka")
+
+                # Verify authenticated audio endpoint & isolation
+                assistant_msg_id = data["assistant_message_id"]
+                audio_url = f"/api/ai/messages/{assistant_msg_id}/audio"
+
+                # 1. Farmer 1 can retrieve audio
+                for k, v in self.farmer1_cookies.items():
+                    self.client.set_cookie(k, v)
+                audio_resp = self.client.get(audio_url, headers=self.farmer1_headers)
+                self.assertEqual(audio_resp.status_code, 200)
+                self.assertIn("audio/", audio_resp.content_type)
+                self.assertTrue(len(audio_resp.data) > 0)
+
+                # 2. Farmer 2 is forbidden from retrieving Farmer 1's audio (cross-tenant security)
+                for k, v in self.farmer2_cookies.items():
+                    self.client.set_cookie(k, v)
+                forbidden_resp = self.client.get(audio_url, headers=self.farmer2_headers)
+                self.assertEqual(forbidden_resp.status_code, 403)
+
+                # 3. Non-existent message returns 404
+                for k, v in self.farmer1_cookies.items():
+                    self.client.set_cookie(k, v)
+                not_found_resp = self.client.get("/api/ai/messages/999999/audio", headers=self.farmer1_headers)
+                self.assertEqual(not_found_resp.status_code, 404)
 
 
 if __name__ == "__main__":

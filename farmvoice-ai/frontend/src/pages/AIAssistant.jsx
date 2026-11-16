@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useAuth } from "../components/AuthProvider";
 import aiService from "../services/aiService";
 import { profileService } from "../services/profileService";
@@ -6,8 +6,12 @@ import {
   SpeechRecognitionManager,
   AudioStreamRecorder,
   HybridAudioPlayer,
+  unlockAudioContext,
   LANGUAGE_SPEECH_MAP,
 } from "../utils/voiceUtils";
+import VoiceOrb from "../components/voice/VoiceOrb";
+import AudioWaveform from "../components/voice/AudioWaveform";
+import VoiceControls from "../components/voice/VoiceControls";
 import {
   Bot,
   Send,
@@ -32,20 +36,21 @@ import {
   CloudSun,
   Droplets,
   Landmark,
-  FileQuestion,
-  Menu,
-  X,
-  AlertCircle,
-  MapPin,
   Layers,
   CheckCircle,
   MessageSquare,
   Radio,
   Sliders,
+  AlertCircle,
+  X,
+  MapPin,
+  RefreshCw,
+  Menu,
 } from "lucide-react";
 
 import "../styles/dashboard.css";
 import "../styles/aiAssistant.css";
+import "../components/voice/VoiceOrb.css";
 
 const FALLBACK_LANGUAGES = [
   { code: "kn", name: "Kannada", native_name: "ಕನ್ನಡ", speech_code: "kn-IN" },
@@ -198,7 +203,7 @@ function MarkdownRenderer({ text }) {
             {currentList.map((item, i) => (
               <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
             ))}
-          </ul>
+          </ul >
         );
       }
       currentList = [];
@@ -281,7 +286,8 @@ export default function AIAssistant() {
   const [language, setLanguage] = useState("kn");
   const [allDialects, setAllDialects] = useState({});
   const [dialect, setDialect] = useState("standard");
-  const [voiceMode, setVoiceMode] = useState(true); // Auto-voice response enabled
+  const [voiceMode, setVoiceMode] = useState(true); // Voice Mode active
+  const [autoPlayVoice, setAutoPlayVoice] = useState(true); // Automatic voice responses ON by default
 
   // Farmer Profile & Context
   const [farmerProfile, setFarmerProfile] = useState(null);
@@ -300,22 +306,31 @@ export default function AIAssistant() {
   const [errorBanner, setErrorBanner] = useState(null);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
 
-  // Voice Input (STT) State
-  const [isListening, setIsListening] = useState(false);
-  const [voiceSupported, setVoiceSupported] = useState(false);
-  const [audioProcessing, setAudioProcessing] = useState(false);
+  // Voice Orb States: 'idle' | 'listening' | 'processing' | 'speaking' | 'completed' | 'error'
+  const [orbState, setOrbState] = useState("idle");
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [frequencies, setFrequencies] = useState([]);
+  const [liveTranscript, setLiveTranscript] = useState("");
 
   // Audio Playback (TTS) State
   const [activeAudioMsgId, setActiveAudioMsgId] = useState(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isAudioPaused, setIsAudioPaused] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioSpeed, setAudioSpeed] = useState(1.0);
+  const [volume, setVolume] = useState(1.0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [autoplayBlockedMsg, setAutoplayBlockedMsg] = useState(null);
 
+  // Refs
   const recognitionManagerRef = useRef(null);
   const streamRecorderRef = useRef(null);
   const audioPlayerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const visualizerRafRef = useRef(null);
 
   const farmerDisplayName =
     farmerProfile?.full_name || user?.farm_name || user?.username || "Farmer";
@@ -370,6 +385,9 @@ export default function AIAssistant() {
           if (typeof pref.voice_enabled === "boolean") {
             setVoiceMode(pref.voice_enabled);
           }
+          if (typeof pref.auto_play_voice === "boolean") {
+            setAutoPlayVoice(pref.auto_play_voice);
+          }
         }
       })
       .catch(() => {
@@ -406,75 +424,92 @@ export default function AIAssistant() {
       onStart: (msgId) => {
         setActiveAudioMsgId(msgId);
         setIsAudioPlaying(true);
+        setIsAudioPaused(false);
+        setOrbState("speaking");
+        setAutoplayBlockedMsg(null);
+        startPlaybackVisualizer();
       },
       onEnd: () => {
         setActiveAudioMsgId(null);
         setIsAudioPlaying(false);
+        setIsAudioPaused(false);
         setAudioProgress(0);
+        setOrbState("completed");
+        stopVisualizer();
       },
       onPause: () => {
         setIsAudioPlaying(false);
+        setIsAudioPaused(true);
+        stopVisualizer();
       },
       onResume: () => {
         setIsAudioPlaying(true);
+        setIsAudioPaused(false);
+        setOrbState("speaking");
+        startPlaybackVisualizer();
       },
-      onProgress: (current, duration) => {
-        if (duration > 0) {
-          setAudioProgress((current / duration) * 100);
-        }
+      onProgress: (current, duration, percent) => {
+        setAudioProgress(percent);
       },
       onError: (err) => {
         console.warn("Audio playback notice:", err);
         setIsAudioPlaying(false);
+        setOrbState("completed");
+        stopVisualizer();
+      },
+      onAutoplayBlocked: (msgId, playFn) => {
+        console.warn("Autoplay was blocked by browser policy for message:", msgId);
+        setIsAudioPlaying(false);
+        setOrbState("error");
+        setAutoplayBlockedMsg({ id: msgId, playFn });
+        stopVisualizer();
       },
     });
     audioPlayerRef.current = player;
 
     // Initialize Speech Recognition Manager (instant live transcription preview)
     const stt = new SpeechRecognitionManager(
-      (transcript, isFinal) => {
-        setQuery(transcript);
+      (transcriptText, isFinal) => {
+        setQuery(transcriptText);
+        setLiveTranscript(transcriptText);
         if (isFinal) {
-          setIsListening(false);
+          // Keep transcript ready in composer
         }
       },
       (errorMessage) => {
         setErrorBanner(errorMessage);
-        setIsListening(false);
+        stopRecording();
       },
       () => {
-        setIsListening(false);
+        // Recognition ended
       },
       () => {
-        setIsListening(true);
+        setOrbState("listening");
         setErrorBanner(null);
       }
     );
     recognitionManagerRef.current = stt;
-    setVoiceSupported(stt.isSupported || Boolean(navigator.mediaDevices?.getUserMedia));
 
-    // Initialize MediaRecorder for backend Sarvam STT
+    // Initialize MediaRecorder for backend audio processing
     const streamRecorder = new AudioStreamRecorder(
       null,
       async (audioBlob) => {
-        // Send recorded audio to backend Sarvam STT endpoint
+        // Send recorded audio to backend STT endpoint if audio blob is valid
         if (audioBlob && audioBlob.size > 1000) {
-          setAudioProcessing(true);
           try {
             const sttRes = await aiService.speechToText(audioBlob, language);
             if (sttRes?.success && sttRes.transcript) {
               setQuery(sttRes.transcript);
+              setLiveTranscript(sttRes.transcript);
             }
           } catch (err) {
-            console.warn("Backend STT fallback to browser recognition:", err);
-          } finally {
-            setAudioProcessing(false);
+            console.warn("Backend STT fallback to live transcription:", err);
           }
         }
       },
       (errMessage) => {
         setErrorBanner(errMessage);
-        setIsListening(false);
+        stopRecording();
       }
     );
     streamRecorderRef.current = streamRecorder;
@@ -484,6 +519,8 @@ export default function AIAssistant() {
       stt.stop();
       streamRecorder.stop();
       player.stop();
+      stopVisualizer();
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     };
   }, []);
 
@@ -512,6 +549,41 @@ export default function AIAssistant() {
       )}px`;
     }
   }, [query]);
+
+  // Visualizer Animation Frames
+  const startRecordingVisualizer = () => {
+    stopVisualizer();
+    const update = () => {
+      if (streamRecorderRef.current?.isRecording) {
+        const data = streamRecorderRef.current.getAudioData();
+        setAudioLevel(data.level);
+        setFrequencies(data.frequencies);
+        visualizerRafRef.current = requestAnimationFrame(update);
+      }
+    };
+    visualizerRafRef.current = requestAnimationFrame(update);
+  };
+
+  const startPlaybackVisualizer = () => {
+    stopVisualizer();
+    const update = () => {
+      if (audioPlayerRef.current?.isPlaying) {
+        const data = audioPlayerRef.current.getPlaybackData();
+        setAudioLevel(data.level);
+        visualizerRafRef.current = requestAnimationFrame(update);
+      }
+    };
+    visualizerRafRef.current = requestAnimationFrame(update);
+  };
+
+  const stopVisualizer = () => {
+    if (visualizerRafRef.current) {
+      cancelAnimationFrame(visualizerRafRef.current);
+      visualizerRafRef.current = null;
+    }
+    setAudioLevel(0);
+    setFrequencies([]);
+  };
 
   const loadConversationsList = async () => {
     try {
@@ -567,6 +639,8 @@ export default function AIAssistant() {
     audioPlayerRef.current?.stop();
     setActiveAudioMsgId(null);
     setIsAudioPlaying(false);
+    setIsAudioPaused(false);
+    setOrbState("idle");
     setErrorBanner(null);
 
     try {
@@ -592,9 +666,12 @@ export default function AIAssistant() {
     audioPlayerRef.current?.stop();
     setActiveAudioMsgId(null);
     setIsAudioPlaying(false);
+    setIsAudioPaused(false);
     setActiveConversationId(null);
     setMessages([]);
     setQuery("");
+    setLiveTranscript("");
+    setOrbState("idle");
     setErrorBanner(null);
     setMobileSidebarOpen(false);
   };
@@ -625,13 +702,178 @@ export default function AIAssistant() {
   };
 
   const handleToggleVoiceMode = () => {
+    unlockAudioContext();
     const nextVal = !voiceMode;
     setVoiceMode(nextVal);
     if (!nextVal) {
       audioPlayerRef.current?.stop();
       setActiveAudioMsgId(null);
+      setIsAudioPlaying(false);
+      setOrbState("idle");
     }
     aiService.updatePreferences({ voice_enabled: nextVal }).catch(() => {});
+  };
+
+  const handleToggleAutoPlay = (checked) => {
+    setAutoPlayVoice(checked);
+    aiService.updatePreferences({ auto_play_voice: checked }).catch(() => {});
+  };
+
+  const handleVolumeChange = (vol) => {
+    setVolume(vol);
+    setIsMuted(vol === 0);
+    audioPlayerRef.current?.setVolume(vol);
+  };
+
+  const handleMuteToggle = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    audioPlayerRef.current?.setMuted(nextMuted);
+  };
+
+  const handleSpeedChange = (speed) => {
+    setAudioSpeed(speed);
+    audioPlayerRef.current?.setPlaybackRate(speed);
+  };
+
+  // Recording Controls
+  const startRecording = async () => {
+    setErrorBanner(null);
+    setAutoplayBlockedMsg(null);
+    audioPlayerRef.current?.stop();
+
+    await unlockAudioContext();
+    const stt = recognitionManagerRef.current;
+    const recorder = streamRecorderRef.current;
+
+    setLiveTranscript("");
+    setRecordingDuration(0);
+
+    const recorderStarted = await recorder?.start();
+    const sttStarted = stt?.start(language);
+
+    if (recorderStarted || sttStarted) {
+      setOrbState("listening");
+      startRecordingVisualizer();
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setOrbState("error");
+      setErrorBanner("Could not access microphone. Please check permissions.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    recognitionManagerRef.current?.stop();
+    streamRecorderRef.current?.stop();
+    stopVisualizer();
+
+    // If text was recognized, prepare for question submission
+    if (query.trim()) {
+      setOrbState("processing");
+      handleSendMessage(query.trim());
+    } else {
+      setOrbState("idle");
+    }
+  };
+
+  const handleOrbClick = () => {
+    unlockAudioContext();
+    if (orbState === "listening") {
+      stopRecording();
+    } else if (orbState === "speaking") {
+      handlePauseResumeAudio();
+    } else if (orbState === "completed") {
+      startRecording();
+    } else if (orbState === "idle") {
+      startRecording();
+    } else if (orbState === "error") {
+      if (autoplayBlockedMsg?.playFn) {
+        autoplayBlockedMsg.playFn();
+        setAutoplayBlockedMsg(null);
+        setOrbState("speaking");
+      } else {
+        startRecording();
+      }
+    }
+  };
+
+  // Audio Playback Controls
+  const handlePlayAudio = (msg) => {
+    unlockAudioContext();
+    const player = audioPlayerRef.current;
+    if (!player) return;
+
+    if (activeAudioMsgId === msg.id && isAudioPlaying) {
+      player.pause();
+    } else if (activeAudioMsgId === msg.id && !isAudioPlaying && isAudioPaused) {
+      player.resume();
+    } else {
+      player.play(msg.id, msg.message, msg.language || language, msg.audio);
+    }
+  };
+
+  const handleReplayAudio = (msg = null) => {
+    unlockAudioContext();
+    const targetMsg =
+      msg || messages.filter((m) => m.role === "assistant").slice(-1)[0];
+    if (targetMsg) {
+      audioPlayerRef.current?.play(
+        targetMsg.id,
+        targetMsg.message,
+        targetMsg.language || language,
+        targetMsg.audio
+      );
+    }
+  };
+
+  const handlePauseResumeAudio = () => {
+    const player = audioPlayerRef.current;
+    if (!player) return;
+    if (isAudioPlaying) {
+      player.pause();
+    } else {
+      player.resume();
+    }
+  };
+
+  const handleStopAudio = () => {
+    audioPlayerRef.current?.stop();
+    setIsAudioPlaying(false);
+    setIsAudioPaused(false);
+    setActiveAudioMsgId(null);
+    setOrbState("idle");
+    stopVisualizer();
+  };
+
+  // Retry Voice Generation if TTS previously failed
+  const handleRetryVoice = async (msg) => {
+    unlockAudioContext();
+    try {
+      const ttsRes = await aiService.textToSpeech(msg.message, msg.language || language);
+      if (ttsRes?.success && ttsRes.audio_base64) {
+        msg.audio = {
+          provider: ttsRes.provider,
+          audio_base64: ttsRes.audio_base64,
+          mime_type: ttsRes.mime_type || "audio/mpeg",
+        };
+        audioPlayerRef.current?.play(
+          msg.id,
+          msg.message,
+          msg.language || language,
+          msg.audio
+        );
+      }
+    } catch (err) {
+      console.warn("Retry TTS failed:", err);
+    }
   };
 
   // Send Question with Context & Dialect
@@ -640,8 +882,10 @@ export default function AIAssistant() {
     if (!text || sending) return;
 
     setErrorBanner(null);
+    setAutoplayBlockedMsg(null);
     audioPlayerRef.current?.stop();
     setActiveAudioMsgId(null);
+    await unlockAudioContext();
 
     // Optimistic user message
     const tempUserMsg = {
@@ -653,7 +897,9 @@ export default function AIAssistant() {
 
     setMessages((prev) => [...prev, tempUserMsg]);
     setQuery("");
+    setLiveTranscript("");
     setSending(true);
+    setOrbState("processing");
 
     try {
       const response = await aiService.sendMessage(
@@ -678,14 +924,16 @@ export default function AIAssistant() {
 
         setMessages((prev) => [...prev, assistantMsg]);
 
-        // Auto-play voice if Voice Mode is active
-        if (voiceMode) {
+        // Automatically play spoken audio response if Voice Mode is active
+        if (voiceMode && autoPlayVoice) {
           audioPlayerRef.current?.play(
             assistantMsg.id,
             assistantMsg.message,
             assistantMsg.language,
             assistantMsg.audio
           );
+        } else {
+          setOrbState("completed");
         }
 
         if (!activeConversationId && response.conversation_id) {
@@ -695,6 +943,7 @@ export default function AIAssistant() {
       }
     } catch (err) {
       console.error("AI Chat error:", err);
+      setOrbState("error");
       const errData = err.response?.data;
       if (errData?.error_type === "MISSING_API_KEY") {
         setErrorBanner(
@@ -710,57 +959,6 @@ export default function AIAssistant() {
     } finally {
       setSending(false);
     }
-  };
-
-  // Voice Recording Toggle (Microphone Input)
-  const handleToggleVoice = async () => {
-    const stt = recognitionManagerRef.current;
-    const recorder = streamRecorderRef.current;
-
-    if (isListening) {
-      stt?.stop();
-      recorder?.stop();
-      setIsListening(false);
-    } else {
-      setErrorBanner(null);
-      // Start both audio stream recorder and live browser preview
-      const recorderStarted = await recorder?.start();
-      const sttStarted = stt?.start(language);
-      if (recorderStarted || sttStarted) {
-        setIsListening(true);
-      }
-    }
-  };
-
-  // Audio Playback Controls
-  const handlePlayAudio = (msg) => {
-    const player = audioPlayerRef.current;
-    if (!player) return;
-
-    if (activeAudioMsgId === msg.id && isAudioPlaying) {
-      player.pause();
-    } else if (activeAudioMsgId === msg.id && !isAudioPlaying) {
-      player.resume();
-    } else {
-      player.play(msg.id, msg.message, msg.language || language, msg.audio);
-    }
-  };
-
-  const handleReplayAudio = (msg) => {
-    audioPlayerRef.current?.play(
-      msg.id,
-      msg.message,
-      msg.language || language,
-      msg.audio
-    );
-  };
-
-  const handleCycleSpeed = () => {
-    const speeds = [1.0, 1.2, 0.8];
-    const nextIdx = (speeds.indexOf(audioSpeed) + 1) % speeds.length;
-    const nextSpeed = speeds[nextIdx];
-    setAudioSpeed(nextSpeed);
-    audioPlayerRef.current?.setPlaybackRate(nextSpeed);
   };
 
   const handleCopyMessage = async (msgId, text) => {
@@ -969,7 +1167,7 @@ export default function AIAssistant() {
 
         {/* 2. Main Chat Area */}
         <section className="ai-chat-main">
-          {/* Top Bar with Language, Dialect, and Voice Mode */}
+          {/* Top Bar with Language, Dialect, Audio Controls & Voice Mode Toggle */}
           <div className="ai-topbar">
             <div className="ai-topbar-left">
               {sidebarCollapsed && (
@@ -1032,6 +1230,18 @@ export default function AIAssistant() {
                 </select>
               </div>
 
+              {/* Voice Controls: Volume, Mute, Speed, Auto-Play Settings */}
+              <VoiceControls
+                volume={volume}
+                isMuted={isMuted}
+                playbackSpeed={audioSpeed}
+                autoPlay={autoPlayVoice}
+                onVolumeChange={handleVolumeChange}
+                onMuteToggle={handleMuteToggle}
+                onSpeedChange={handleSpeedChange}
+                onAutoPlayToggle={handleToggleAutoPlay}
+              />
+
               {/* Voice Mode Toggle Button */}
               <button
                 type="button"
@@ -1048,6 +1258,35 @@ export default function AIAssistant() {
               </button>
             </div>
           </div>
+
+          {/* Prominent Glowing Voice Orb Hero Section (Design A) */}
+          {voiceMode && (
+            <VoiceOrb
+              state={orbState}
+              onOrbClick={handleOrbClick}
+              onStop={handleStopAudio}
+              onReplay={() => handleReplayAudio()}
+              onPauseResume={handlePauseResumeAudio}
+              isPaused={isAudioPaused}
+              recordingDuration={recordingDuration}
+              audioLevel={audioLevel}
+              frequencies={frequencies}
+              audioProgress={audioProgress}
+              transcript={liveTranscript || query}
+              activeLanguage={activeLanguageInfo}
+              activeDialect={activeDialectInfo}
+              errorMessage={errorBanner}
+              onTapToPlay={
+                autoplayBlockedMsg
+                  ? () => {
+                      autoplayBlockedMsg.playFn?.();
+                      setAutoplayBlockedMsg(null);
+                      setOrbState("speaking");
+                    }
+                  : null
+              }
+            />
+          )}
 
           {/* Messages Scroll Container */}
           <div className="ai-messages-scroll">
@@ -1070,7 +1309,7 @@ export default function AIAssistant() {
               </div>
             )}
 
-            {/* Welcome Screen */}
+            {/* Welcome Screen (Shown when no messages exist in current session) */}
             {messages.length === 0 && (
               <div className="ai-welcome-screen">
                 <div className="ai-welcome-avatar-wrap">
@@ -1151,7 +1390,7 @@ export default function AIAssistant() {
               </div>
             )}
 
-            {/* Conversation Messages */}
+            {/* Conversation Messages Stream */}
             {messages.map((msg, idx) => {
               const isUser = msg.role === "user";
               const isMsgPlaying = activeAudioMsgId === msg.id && isAudioPlaying;
@@ -1245,19 +1484,30 @@ export default function AIAssistant() {
                             />
                           </div>
 
-                          <button
-                            type="button"
-                            className="ai-audio-speed-btn"
-                            onClick={handleCycleSpeed}
-                            title="Adjust voice speed"
-                          >
-                            {audioSpeed}x
-                          </button>
+                          <span className="ai-audio-time-label">
+                            {isMsgPlaying ? `${Math.round(audioProgress)}%` : "Spoken Audio"}
+                          </span>
 
                           <span className="ai-audio-provider-tag">
                             <Volume2 size={11} />
-                            {msg.audio ? "Sarvam Voice" : "Regional Voice"}
+                            {msg.audio?.provider === "sarvam"
+                              ? "Sarvam Voice"
+                              : "Regional Spoken"}
                           </span>
+
+                          {/* Retry Voice if TTS failed */}
+                          {!msg.audio && (
+                            <button
+                              type="button"
+                              className="ai-tool-btn"
+                              onClick={() => handleRetryVoice(msg)}
+                              title="Synthesize and play audio"
+                              style={{ marginLeft: "4px", fontSize: "0.72rem" }}
+                            >
+                              <RefreshCw size={11} />
+                              <span>Retry Voice</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1322,38 +1572,6 @@ export default function AIAssistant() {
 
           {/* 3. Bottom Input Composer */}
           <div className="ai-composer-wrapper">
-            {/* Active Voice Listening Pill */}
-            {isListening && (
-              <div className="ai-voice-active-indicator">
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span className="ai-rec-dot" />
-                  <span>
-                    Listening in {activeLanguageInfo.native_name} ({activeDialectInfo.native_name || activeDialectInfo.name})... Speak now.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleToggleVoice}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "inherit",
-                    fontWeight: 700,
-                  }}
-                >
-                  Done
-                </button>
-              </div>
-            )}
-
-            {/* Audio Processing Pill */}
-            {audioProcessing && (
-              <div className="ai-voice-active-indicator" style={{ background: "#E3F2FD", borderColor: "#90CAF9", color: "#1565C0" }}>
-                <span>Transcribing your spoken regional voice with AI...</span>
-              </div>
-            )}
-
             <div className="ai-composer-box">
               <textarea
                 ref={textareaRef}
@@ -1365,7 +1583,7 @@ export default function AIAssistant() {
                     handleSendMessage();
                   }
                 }}
-                placeholder={`Ask in ${activeLanguageInfo.native_name} or English (press mic to speak)...`}
+                placeholder={`Type your farming question in ${activeLanguageInfo.native_name} or English (or click the microphone)...`}
                 rows={1}
                 className="ai-composer-textarea"
                 disabled={sending}
@@ -1375,16 +1593,16 @@ export default function AIAssistant() {
                 {/* Microphone Button */}
                 <button
                   type="button"
-                  className={`ai-mic-btn ${isListening ? "recording" : ""}`}
-                  onClick={handleToggleVoice}
+                  className={`ai-mic-btn ${orbState === "listening" ? "recording" : ""}`}
+                  onClick={handleOrbClick}
                   title={
-                    isListening
+                    orbState === "listening"
                       ? "Stop listening"
                       : `Speak in ${activeLanguageInfo.name} (${activeDialectInfo.name})`
                   }
                   disabled={sending}
                 >
-                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                  {orbState === "listening" ? <MicOff size={18} /> : <Mic size={18} />}
                 </button>
 
                 {/* Send Button */}
@@ -1406,7 +1624,7 @@ export default function AIAssistant() {
                 Language: <strong>{activeLanguageInfo.native_name}</strong> | Dialect: <strong>{activeDialectInfo.native_name || activeDialectInfo.name}</strong>
               </span>
               <span>
-                Voice Mode: <strong>{voiceMode ? "Enabled (Spoken Responses)" : "Disabled"}</strong>
+                Voice Mode: <strong>{voiceMode ? "Active (Orb & Spoken Audio)" : "Disabled (Text Only)"}</strong>
               </span>
             </div>
           </div>

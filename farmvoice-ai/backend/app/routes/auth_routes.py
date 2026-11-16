@@ -51,9 +51,14 @@ def login():
             "message": "Validation failed."
         }), 400
 
-    response, status_code, token_info = AuthService.login(cleaned)
+    login_result = AuthService.login(cleaned)
+    if isinstance(login_result, tuple) and len(login_result) == 3:
+        response, status_code, token_info = login_result
+    else:
+        response, status_code = login_result[0], login_result[1]
+        token_info = None
 
-    if status_code != 200:
+    if status_code != 200 or not token_info:
         return jsonify(response), status_code
 
     result = make_response(jsonify(response), 200)
@@ -61,20 +66,6 @@ def login():
     access_token = token_info["access_token"]
 
     set_access_cookies(result, access_token)
-
-    # Set CSRF cookie manually for Flask-JWT-Extended 4.6.0 compatibility
-    csrf_cookie_name = current_app.config.get(
-        "JWT_CSRF_COOKIE_NAME", "csrf_access_token_cookie"
-    )
-    csrf_token = secrets.token_hex(32)
-    result.set_cookie(
-        csrf_cookie_name,
-        csrf_token,
-        httponly=False,
-        secure=current_app.config.get("JWT_COOKIE_SECURE", False),
-        samesite=current_app.config.get("JWT_COOKIE_SAMESITE", "Lax"),
-        path=current_app.config.get("JWT_CSRF_COOKIE_PATH", "/api"),
-    )
 
     return result
 

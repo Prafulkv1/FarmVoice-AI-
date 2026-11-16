@@ -68,7 +68,9 @@ class Config:
         "JWT_COOKIE_SAMESITE", "Lax"
     )
 
-    JWT_COOKIE_DOMAIN = os.environ.get("JWT_COOKIE_DOMAIN", "localhost")
+    JWT_COOKIE_DOMAIN = os.environ.get("JWT_COOKIE_DOMAIN") or None
+    if JWT_COOKIE_DOMAIN and JWT_COOKIE_DOMAIN.lower() in ("none", "false", ""):
+        JWT_COOKIE_DOMAIN = None
 
     JWT_COOKIE_CSRF_PROTECT = True
 

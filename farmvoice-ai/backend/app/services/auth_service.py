@@ -86,6 +86,7 @@ class AuthService:
                     "message": "Invalid username or password.",
                 },
                 401,
+                None,
             )
 
         access_token = create_access_token(identity=str(farmer.farmer_id))

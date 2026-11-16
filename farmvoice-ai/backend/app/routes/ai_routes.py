@@ -6,7 +6,7 @@ conversation management, language options, and service health.
 """
 
 import base64
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app import db
@@ -137,20 +137,26 @@ def chat():
         language=language_code,
     )
 
-    # 9. Optional Audio Synthesis (Sarvam TTS if voice_mode enabled)
+    # 9. Audio Synthesis (Sarvam TTS or Google TTS if voice_mode enabled)
     audio_data = None
     if voice_mode:
-        tts_res, tts_status = TextToSpeechService.synthesize_speech(
-            text=ai_text,
-            language_code=language_code,
-        )
-        if tts_status == 200 and tts_res.get("success"):
-            audio_data = {
-                "provider": tts_res.get("provider", "sarvam"),
-                "audio_base64": tts_res.get("audio_base64"),
-                "mime_type": tts_res.get("mime_type", "audio/wav"),
-                "speaker": tts_res.get("speaker"),
-            }
+        try:
+            tts_res, tts_status = TextToSpeechService.synthesize_speech(
+                text=ai_text,
+                language_code=language_code,
+                message_id=assistant_msg["id"],
+            )
+            if tts_status == 200 and tts_res.get("success"):
+                audio_data = {
+                    "provider": tts_res.get("provider", "google-tts"),
+                    "audio_base64": tts_res.get("audio_base64"),
+                    "audio_url": f"/api/ai/messages/{assistant_msg['id']}/audio",
+                    "mime_type": tts_res.get("mime_type", "audio/mpeg"),
+                    "speaker": tts_res.get("speaker"),
+                }
+        except Exception as tts_err:
+            # Voice failure must never abort a valid AI written response
+            pass
 
     # 10. Return Structured Response
     return jsonify({
@@ -247,6 +253,57 @@ def text_to_speech():
     return jsonify(result), status
 
 
+@ai_bp.route("/messages/<int:message_id>/audio", methods=["GET"])
+@jwt_required()
+def get_message_audio(message_id):
+    """Securely stream or return synthesized audio for a specific assistant message."""
+    try:
+        user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Invalid user identity."}), 401
+
+    from app.models.ai_message import AIMessage
+    msg = AIMessage.query.filter_by(id=message_id).first()
+    if not msg:
+        return jsonify({"success": False, "message": "Message not found."}), 404
+
+    conv = AIConversation.query.filter_by(id=msg.conversation_id).first()
+    if not conv or conv.user_id != user_id:
+        return jsonify({"success": False, "message": "Access denied. You do not own this audio."}), 403
+
+    # Check cache first
+    cached = TextToSpeechService.get_cached_audio(message_id)
+    if cached:
+        return Response(
+            cached["audio_bytes"],
+            mimetype=cached["mime_type"],
+            headers={
+                "Content-Disposition": f'inline; filename="farmvoice_msg_{message_id}.mp3"',
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "private, max-age=3600",
+            },
+        )
+
+    # Synthesize if not in cache
+    tts_res, tts_status = TextToSpeechService.synthesize_speech(
+        text=msg.message,
+        language_code=msg.language or "kn",
+        message_id=message_id,
+    )
+    if tts_status == 200 and tts_res.get("success") and "audio_bytes" in tts_res:
+        return Response(
+            tts_res["audio_bytes"],
+            mimetype=tts_res.get("mime_type", "audio/mpeg"),
+            headers={
+                "Content-Disposition": f'inline; filename="farmvoice_msg_{message_id}.mp3"',
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "private, max-age=3600",
+            },
+        )
+
+    return jsonify({"success": False, "message": "Speech synthesis unavailable for this message."}), 502
+
+
 @ai_bp.route("/dialects", methods=["GET"])
 def get_dialects():
     """Return all supported regional dialects grouped by language."""
@@ -271,17 +328,17 @@ def get_preferences():
                 "preferred_language": "Kannada",
                 "preferred_dialect": "standard",
                 "voice_enabled": True,
-                "auto_play_voice": False,
+                "auto_play_voice": True,
             },
         }), 200
 
     return jsonify({
         "success": True,
         "preferences": {
-            "preferred_language": prof.preferred_language or "English",
+            "preferred_language": prof.preferred_language or "Kannada",
             "preferred_dialect": prof.preferred_dialect or "standard",
             "voice_enabled": bool(prof.voice_enabled if prof.voice_enabled is not None else True),
-            "auto_play_voice": bool(prof.auto_play_voice),
+            "auto_play_voice": bool(prof.auto_play_voice if prof.auto_play_voice is not None else True),
         },
     }), 200
 
