@@ -62,6 +62,9 @@ def create_app(config_class=Config):
     from app.routes.ai_routes import ai_bp
     app.register_blueprint(ai_bp, url_prefix="/api/ai")
 
+    from app.routes.voice_routes import voice_bp
+    app.register_blueprint(voice_bp, url_prefix="/api/voice")
+
     # Import all models to ensure registration with SQLAlchemy metadata
     from app.models.ai_conversation import AIConversation
     from app.models.ai_message import AIMessage

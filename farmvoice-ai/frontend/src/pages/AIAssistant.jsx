@@ -55,13 +55,13 @@ import "../components/voice/VoiceOrb.css";
 const FALLBACK_LANGUAGES = [
   { code: "kn", name: "Kannada", native_name: "ಕನ್ನಡ", speech_code: "kn-IN" },
   { code: "hi", name: "Hindi", native_name: "हिन्दी", speech_code: "hi-IN" },
-  { code: "te", name: "Telugu", native_name: "తెలుగు", speech_code: "te-IN" },
+  { code: "en", name: "English", native_name: "English", speech_code: "en-IN" },
   { code: "ta", name: "Tamil", native_name: "தமிழ்", speech_code: "ta-IN" },
-  { code: "ml", name: "Malayalam", native_name: "മലയാളം", speech_code: "ml-IN" },
   { code: "mr", name: "Marathi", native_name: "मराठी", speech_code: "mr-IN" },
+  { code: "te", name: "Telugu", native_name: "తెలుగు", speech_code: "te-IN" },
+  { code: "ml", name: "Malayalam", native_name: "മലയാളം", speech_code: "ml-IN" },
   { code: "bn", name: "Bengali", native_name: "বাংলা", speech_code: "bn-IN" },
   { code: "pa", name: "Punjabi", native_name: "ਪੰਜਾਬੀ", speech_code: "pa-IN" },
-  { code: "en", name: "English", native_name: "English", speech_code: "en-IN" },
 ];
 
 const LANGUAGE_CODE_MAP = {

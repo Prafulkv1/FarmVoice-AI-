@@ -62,8 +62,8 @@ def clean_text_for_speech(markdown_text):
     if not markdown_text:
         return ""
     text = markdown_text
-    # Remove markdown headings
-    text = re.sub(r"^#+\s+", "", text, flags=re.MULTILINE)
+    # Remove markdown headings (including indented)
+    text = re.sub(r"^\s*#+\s*", "", text, flags=re.MULTILINE)
     # Remove bold & italics
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"\*(.*?)\*", r"\1", text)
@@ -72,9 +72,9 @@ def clean_text_for_speech(markdown_text):
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
     # Remove inline / block code
     text = re.sub(r"`{1,3}[^`]*`{1,3}", "", text)
-    # Remove list bullet markers
-    text = re.sub(r"^[\*\-\+]\s+", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^\d+\.\s+", "", text, flags=re.MULTILINE)
+    # Remove list bullet markers & numbering (including indented)
+    text = re.sub(r"^\s*[\*\-\+]\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^\s*\d+\.\s+", "", text, flags=re.MULTILINE)
     # Clean multiple spaces and newlines into natural pauses
     text = re.sub(r"\n{2,}", ". ", text)
     text = re.sub(r"\n", " ", text)

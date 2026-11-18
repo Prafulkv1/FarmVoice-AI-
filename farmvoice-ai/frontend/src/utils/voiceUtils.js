@@ -24,14 +24,14 @@ export const LANGUAGE_SPEECH_MAP = {
 export function stripMarkdownForSpeech(text) {
   if (!text) return "";
   return text
-    .replace(/^#+\s+/gm, "") // Headings
+    .replace(/^\s*#+\s*/gm, "") // Headings (including indented)
     .replace(/\*\*(.*?)\*\*/g, "$1") // Bold
     .replace(/\*(.*?)\*/g, "$1") // Italics
     .replace(/_{1,2}(.*?)_{1,2}/g, "$1") // Underscores
     .replace(/`{1,3}[^`]*`{1,3}/g, "") // Inline/block code
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Links -> link text
-    .replace(/^[\*\-\+]\s+/gm, "") // Bullet points
-    .replace(/^\d+\.\s+/gm, "") // Numbered lists
+    .replace(/^\s*[\*\-\+]\s+/gm, "") // Bullet points
+    .replace(/^\s*\d+\.\s+/gm, "") // Numbered lists
     .replace(/---+/g, "") // Horizontal rules
     .replace(/>\s+/g, "") // Blockquotes
     .replace(/\n{2,}/g, ". ") // Newlines -> pause

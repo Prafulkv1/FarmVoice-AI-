@@ -1,52 +1,105 @@
 
-"""FarmVoice AI - Reusable Multi-Provider AI Service Layer."""
+"""FarmVoice AI - Reusable Multi-Provider AI Service Layer with Fallback & Reliability."""
 
 import logging
 import requests
 from flask import current_app
 from app.utils.ai_prompt_builder import AIPromptBuilder
+from app.services.ai.fallback_manager import FallbackManager
+from app.services.ai.provider_health import provider_health
 
 logger = logging.getLogger(__name__)
 
 
 class AIService:
-    """Core AI abstraction service connecting to external LLM providers."""
+    """Core AI abstraction service connecting to external LLM providers with automatic fallback."""
 
     @classmethod
     def get_config(cls):
         """Read active AI settings from Flask configuration."""
-        cfg = current_app.config
+        cfg = current_app.config if current_app else {}
+
+        primary_provider = (
+            cfg.get("AI_PRIMARY_PROVIDER")
+            or cfg.get("AI_PROVIDER")
+            or "gemini"
+        ).lower().strip()
+
+        fallback_provider = (
+            cfg.get("AI_FALLBACK_PROVIDER")
+            or "groq"
+        ).lower().strip()
+
+        # Respect explicit clearing of AI_API_KEY in unit tests
+        raw_ai_key = cfg.get("AI_API_KEY")
+        if raw_ai_key is not None and not str(raw_ai_key).strip():
+            gemini_key = ""
+            legacy_key = ""
+        else:
+            gemini_key = (
+                cfg.get("GEMINI_API_KEY")
+                or cfg.get("AI_API_KEY")
+                or ""
+            ).strip()
+            legacy_key = gemini_key
+
+        gemini_model = (
+            cfg.get("GEMINI_MODEL")
+            or cfg.get("AI_MODEL")
+            or "gemini-1.5-flash"
+        ).strip()
+
+        groq_key = cfg.get("GROQ_API_KEY", "").strip()
+        groq_model = cfg.get("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
 
         return {
-            "provider": cfg.get("AI_PROVIDER", "gemini").lower().strip(),
-            "api_key": cfg.get("AI_API_KEY", "").strip(),
-            "model": cfg.get("AI_MODEL", "gemini-3.5-flash").strip(),
+            "provider": primary_provider,
+            "primary_provider": primary_provider,
+            "fallback_provider": fallback_provider,
+            "api_key": legacy_key,
+            "model": gemini_model,
+            "gemini_api_key": gemini_key,
+            "gemini_model": gemini_model,
+            "groq_api_key": groq_key,
+            "groq_model": groq_model,
             "temperature": float(cfg.get("AI_TEMPERATURE", 0.4)),
             "max_tokens": int(cfg.get("AI_MAX_TOKENS", 1500)),
-            "timeout": int(cfg.get("AI_TIMEOUT_SECONDS", 30)),
+            "timeout": int(cfg.get("AI_REQUEST_TIMEOUT", cfg.get("AI_TIMEOUT_SECONDS", 30))),
             "base_url": cfg.get("AI_BASE_URL", "").strip(),
+            "max_retries": int(cfg.get("AI_MAX_RETRIES", 2)),
+            "cooldown_seconds": int(cfg.get("AI_COOLDOWN_SECONDS", 60)),
         }
 
     @classmethod
     def check_health(cls):
-        """Check AI service configuration."""
+        """Check operational status of AI providers and fallback chain."""
         conf = cls.get_config()
 
-        has_key = bool(conf["api_key"])
+        has_gemini = bool(conf["gemini_api_key"])
+        has_groq = bool(conf["groq_api_key"])
+        has_legacy = bool(conf["api_key"])
         is_local = conf["provider"] in ("ollama", "custom")
-        ready = has_key or is_local
+
+        ready = has_gemini or has_groq or has_legacy or is_local
+
+        health_summary = provider_health.get_health_summary()
 
         return {
             "provider": conf["provider"],
+            "primary_provider": conf["primary_provider"],
+            "fallback_provider": conf["fallback_provider"],
             "model": conf["model"],
             "configured": ready,
-            "has_api_key": has_key,
+            "has_api_key": has_gemini or has_groq or has_legacy,
+            "has_gemini_key": has_gemini,
+            "has_groq_key": has_groq,
             "status": "ready" if ready else "unconfigured",
             "message": (
-                "AI service is operational."
+                "AI service is operational with multi-provider resilience."
                 if ready
                 else "AI service requires an API key in backend/.env."
             ),
+            "providers": health_summary,
         }
 
     @classmethod
@@ -58,12 +111,12 @@ class AIService:
         dialect_code="standard",
         conversation_history=None,
     ):
-        """Generate an AI response using the configured provider."""
-
+        """Generate an AI response with multi-provider fallback and bounded retry reliability."""
         conf = cls.get_config()
-        provider = conf["provider"]
+        has_key = bool(conf["gemini_api_key"] or conf["groq_api_key"] or conf["api_key"])
+        is_local = conf["provider"] in ("ollama", "custom")
 
-        if not conf["api_key"] and provider not in ("ollama", "custom"):
+        if not has_key and not is_local:
             return {
                 "success": False,
                 "error_type": "MISSING_API_KEY",
@@ -82,63 +135,13 @@ class AIService:
 
         history = conversation_history or []
 
-        try:
-            if provider == "gemini":
-                return cls._call_gemini(
-                    conf, system_prompt, user_prompt, history
-                )
-
-            elif provider in ("openai", "groq", "custom"):
-                return cls._call_openai_compatible(
-                    conf, system_prompt, user_prompt, history
-                )
-
-            elif provider == "anthropic":
-                return cls._call_anthropic(
-                    conf, system_prompt, user_prompt, history
-                )
-
-            elif provider == "ollama":
-                return cls._call_ollama(
-                    conf, system_prompt, user_prompt, history
-                )
-
-            else:
-                return {
-                    "success": False,
-                    "error_type": "UNSUPPORTED_PROVIDER",
-                    "message": f"Unsupported AI provider: {provider}",
-                }, 400
-
-        except requests.exceptions.Timeout:
-            logger.exception("AI provider request timed out.")
-
-            return {
-                "success": False,
-                "error_type": "TIMEOUT",
-                "message": "The AI service timed out. Please try again.",
-            }, 504
-
-        except requests.exceptions.ConnectionError:
-            logger.exception("AI provider connection failed.")
-
-            return {
-                "success": False,
-                "error_type": "NETWORK_ERROR",
-                "message": "Unable to connect to the AI service.",
-            }, 502
-
-        except Exception:
-            logger.exception("Unexpected error in AI service.")
-
-            return {
-                "success": False,
-                "error_type": "AI_SERVICE_ERROR",
-                "message": (
-                    "An error occurred while generating your farming advisory. "
-                    "Please try again in a few moments."
-                ),
-            }, 500
+        # Delegate execution to FallbackManager with bounded retries and cooldown tracking
+        return FallbackManager.generate_with_fallback(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            conversation_history=history,
+            max_retries=conf.get("max_retries", 2),
+        )
 
     # ---------------------------------------------------------
     # GOOGLE GEMINI

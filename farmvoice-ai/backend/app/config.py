@@ -95,13 +95,30 @@ class Config:
         "FRONTEND_URL", "http://localhost:5173"
     )
 
-    # AI Provider & Model configuration
-    AI_PROVIDER = os.environ.get("AI_PROVIDER", "gemini").lower().strip()
-    AI_API_KEY = os.environ.get("AI_API_KEY", "").strip()
-    AI_MODEL = os.environ.get("AI_MODEL", "gemini-3.5-flash").strip()
+    # AI Provider & Multi-Provider Reliability configuration
+    AI_PRIMARY_PROVIDER = os.environ.get("AI_PRIMARY_PROVIDER", os.environ.get("AI_PROVIDER", "gemini")).lower().strip()
+    AI_FALLBACK_PROVIDER = os.environ.get("AI_FALLBACK_PROVIDER", "groq").lower().strip()
+
+    # Google Gemini (Primary Provider)
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", os.environ.get("AI_API_KEY", "")).strip()
+    GEMINI_MODEL = os.environ.get("GEMINI_MODEL", os.environ.get("AI_MODEL", "gemini-1.5-flash")).strip()
+
+    # Groq (Fallback Provider)
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+
+    # Retry, Timeout & Cooldown policies
+    AI_MAX_RETRIES = int(os.environ.get("AI_MAX_RETRIES", "2"))
+    AI_REQUEST_TIMEOUT = int(os.environ.get("AI_REQUEST_TIMEOUT", os.environ.get("AI_TIMEOUT_SECONDS", "30")))
+    AI_COOLDOWN_SECONDS = int(os.environ.get("AI_COOLDOWN_SECONDS", "60"))
+
+    # Legacy compatibility fields
+    AI_PROVIDER = AI_PRIMARY_PROVIDER
+    AI_API_KEY = GEMINI_API_KEY or os.environ.get("AI_API_KEY", "").strip()
+    AI_MODEL = GEMINI_MODEL
+    AI_TIMEOUT_SECONDS = AI_REQUEST_TIMEOUT
     AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.4"))
     AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "1500"))
-    AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
     AI_BASE_URL = os.environ.get("AI_BASE_URL", "").strip()
 
     # Sarvam AI & Regional Voice Configuration
